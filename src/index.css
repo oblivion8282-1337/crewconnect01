@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: #D9FF00;
+    --color-primary-rgb: 217, 255, 0;
+    --color-primary-foreground: #000000;
+  }
+}
+
+@layer utilities {
+  .bg-primary {
+    background-color: var(--color-primary) !important;
+  }
+
+  .text-primary {
+    color: var(--color-primary) !important;
+  }
+
+  .border-primary {
+    border-color: var(--color-primary) !important;
+  }
+
+  .ring-primary {
+    --tw-ring-color: var(--color-primary) !important;
+  }
+
+  .text-primary-foreground {
+    color: var(--color-primary-foreground) !important;
+  }
+
+  .bg-primary\/10,
+  .bg-primary\/20 {
+    background-color: rgba(var(--color-primary-rgb), 0.15) !important;
+  }
+
+  .hover\:bg-primary\/10:hover {
+    background-color: rgba(var(--color-primary-rgb), 0.1) !important;
+  }
+
+  .focus\:ring-primary\/50:focus {
+    --tw-ring-color: rgba(var(--color-primary-rgb), 0.5) !important;
+  }
+
+  .fill-primary {
+    fill: var(--color-primary) !important;
+  }
+}
