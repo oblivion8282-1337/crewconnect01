@@ -2,13 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 
 // Preset accent colors
 export const ACCENT_COLORS = [
+  { name: 'Cyan', hex: '#00D9FF' },
   { name: 'Neon Gelb', hex: '#D9FF00' },
-  { name: 'Electric Blue', hex: '#00D4FF' },
   { name: 'Violet', hex: '#8B5CF6' },
   { name: 'Pink', hex: '#EC4899' },
   { name: 'Orange', hex: '#F97316' },
   { name: 'Emerald', hex: '#10B981' },
-  { name: 'Cyan', hex: '#06B6D4' },
   { name: 'Rose', hex: '#F43F5E' },
   { name: 'Amber', hex: '#F59E0B' },
   { name: 'Lime', hex: '#84CC16' },
@@ -17,7 +16,7 @@ export const ACCENT_COLORS = [
 ];
 
 const STORAGE_KEY = 'crewconnect-accent-color';
-const DEFAULT_COLOR = '#D9FF00';
+const DEFAULT_COLOR = '#00D9FF';
 
 // Convert hex to RGB string for rgba()
 function hexToRgbString(hex) {
@@ -25,7 +24,7 @@ function hexToRgbString(hex) {
   if (result) {
     return `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`;
   }
-  return '217, 255, 0';
+  return '0, 217, 255';
 }
 
 // Determine if color is light or dark for foreground contrast

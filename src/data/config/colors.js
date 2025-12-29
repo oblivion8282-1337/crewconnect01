@@ -5,9 +5,9 @@
 
 export const COLORS = {
   primary: {
-    DEFAULT: '#D9FF00',
+    DEFAULT: '#00D9FF',
     foreground: '#000000',
-    muted: 'rgba(217, 255, 0, 0.15)',
+    muted: 'rgba(0, 217, 255, 0.15)',
   },
   secondary: {
     DEFAULT: '#FFFFFF',
@@ -22,7 +22,7 @@ export const COLORS = {
     900: '#0A0A0A',
   },
   accents: {
-    chartHighlight: '#D9FF00',
+    chartHighlight: '#00D9FF',
     chartBase: '#2C2C2E',
     success: '#34C759',
     warning: '#FF9500',
@@ -33,12 +33,12 @@ export const COLORS = {
 // Chart colors for bar chart
 export const CHART_COLORS = {
   dark: {
-    highlight: '#D9FF00',
+    highlight: '#00D9FF',
     base: '#2C2C2E',
     grid: '#1C1C1E',
   },
   light: {
-    highlight: '#D9FF00',
+    highlight: '#00D9FF',
     base: '#EBEBEB',
     grid: '#F9F9F9',
   },

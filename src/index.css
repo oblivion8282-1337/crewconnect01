@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    --color-primary: #D9FF00;
-    --color-primary-rgb: 217, 255, 0;
+    --color-primary: #00D9FF;
+    --color-primary-rgb: 0, 217, 255;
     --color-primary-foreground: #000000;
   }
 }

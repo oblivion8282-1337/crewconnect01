@@ -6,9 +6,9 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#D9FF00',
+          DEFAULT: '#00D9FF',
           foreground: '#000000',
-          muted: 'rgba(217, 255, 0, 0.15)',
+          muted: 'rgba(0, 217, 255, 0.15)',
         },
         secondary: {
           DEFAULT: '#FFFFFF',
