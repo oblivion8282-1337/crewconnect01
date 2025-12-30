@@ -279,6 +279,9 @@ const CreateProjectModal = ({ onSave, onClose }) => {
     description: '',
     client: '',
     projectNumber: '',
+    contactPerson: '',
+    contactEmail: '',
+    contactPhone: '',
     startDate: '',
     endDate: '',
     budget: { total: 0 }
@@ -316,10 +319,10 @@ const CreateProjectModal = ({ onSave, onClose }) => {
     <ResizableModal
       title="Neues Projekt"
       onClose={onClose}
-      defaultWidth={600}
-      defaultHeight={showDatePicker ? 700 : 550}
-      minWidth={450}
-      minHeight={400}
+      defaultWidth={700}
+      defaultHeight={950}
+      minWidth={550}
+      minHeight={750}
     >
       <form onSubmit={handleSubmit} className="p-4 space-y-4 flex-1 overflow-y-auto">
         {/* Projektname */}
@@ -332,7 +335,7 @@ const CreateProjectModal = ({ onSave, onClose }) => {
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             placeholder="z.B. Werbespot Mercedes 2025"
-            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
             autoFocus
           />
         </div>
@@ -347,7 +350,7 @@ const CreateProjectModal = ({ onSave, onClose }) => {
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             placeholder="Kurze Beschreibung des Projekts..."
             rows={3}
-            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
           />
         </div>
 
@@ -362,7 +365,7 @@ const CreateProjectModal = ({ onSave, onClose }) => {
               value={formData.client}
               onChange={(e) => setFormData({ ...formData, client: e.target.value })}
               placeholder="z.B. Mercedes-Benz AG"
-              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
             />
           </div>
           <div>
@@ -374,8 +377,53 @@ const CreateProjectModal = ({ onSave, onClose }) => {
               value={formData.projectNumber}
               onChange={(e) => setFormData({ ...formData, projectNumber: e.target.value })}
               placeholder="z.B. PRJ-2025-001"
-              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
             />
+          </div>
+        </div>
+
+        {/* Ansprechpartner Sektion */}
+        <div className="pt-2">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Ansprechpartner</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Name
+              </label>
+              <input
+                type="text"
+                value={formData.contactPerson}
+                onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+                placeholder="z.B. Max Mustermann"
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  E-Mail
+                </label>
+                <input
+                  type="email"
+                  value={formData.contactEmail}
+                  onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                  placeholder="max@beispiel.de"
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Telefon
+                </label>
+                <input
+                  type="tel"
+                  value={formData.contactPhone}
+                  onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                  placeholder="+49 123 456789"
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -389,7 +437,7 @@ const CreateProjectModal = ({ onSave, onClose }) => {
             value={formData.budget.total || ''}
             onChange={(e) => setFormData({ ...formData, budget: { total: Number(e.target.value) } })}
             placeholder="z.B. 50000"
-            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
           />
         </div>
 

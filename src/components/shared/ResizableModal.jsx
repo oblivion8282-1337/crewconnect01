@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Maximize2, Minimize2, GripHorizontal } from 'lucide-react';
+import { X, Maximize2, Minimize2 } from 'lucide-react';
 
 /**
  * ResizableModal - Verschiebbares und skalierbares Modal
@@ -222,18 +222,24 @@ const ResizableModal = ({
           onMouseDown={handleDragStart}
           onDoubleClick={handleHeaderDoubleClick}
         >
-          <div className="flex items-center gap-2">
-            {!isMaximized && (
-              <GripHorizontal className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-            )}
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
-              {subtitle && (
-                <p className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
+          {/* Links: Titel */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h2>
+          </div>
+
+          {/* Mitte: Subtitle (z.B. Projekt/Phase/Datum) */}
+          {subtitle && (
+            <div className="flex-1 flex justify-center items-center min-w-0 px-4">
+              {typeof subtitle === 'string' ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{subtitle}</p>
+              ) : (
+                subtitle
               )}
             </div>
-          </div>
-          <div className="flex items-center gap-1">
+          )}
+
+          {/* Rechts: Buttons */}
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={toggleMaximize}
               className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"

@@ -10,6 +10,7 @@ const FreelancerCalendar = ({
   currentDate,
   onDateChange,
   getDayStatus,
+  freelancerId,
   openForMoreDays,
   onBlockDay,
   onBlockDayOpen,
@@ -24,7 +25,7 @@ const FreelancerCalendar = ({
   const firstDayOffset = getFirstDayOfMonth(year, month);
 
   const handleDayClick = (dateKey) => {
-    const status = getDayStatus(null, dateKey);
+    const status = getDayStatus(freelancerId, dateKey);
     setSelectedDay({ date: dateKey, ...status });
   };
 
@@ -83,7 +84,7 @@ const FreelancerCalendar = ({
           {[...Array(daysInMonth)].map((_, i) => {
             const day = i + 1;
             const dateKey = createDateKey(year, month, day);
-            const status = getDayStatus(null, dateKey);
+            const status = getDayStatus(freelancerId, dateKey);
             const isSelected = selectedDay?.date === dateKey;
 
             return (
@@ -120,7 +121,7 @@ const FreelancerCalendar = ({
 const CalendarLegend = () => (
   <div className="flex gap-2 text-xs flex-wrap text-gray-600 dark:text-gray-400">
     <span className="flex items-center gap-1">
-      <div className="w-3 h-3 bg-emerald-500 rounded"></div>
+      <div className="w-3 h-3 bg-green-500 rounded"></div>
       Frei
     </span>
     <span className="flex items-center gap-1">

@@ -10,7 +10,7 @@ import {
   TrendingUp,
   Wallet
 } from 'lucide-react';
-import { createDateKey } from '../../utils/dateUtils';
+import { createDateKey, formatDateShort } from '../../utils/dateUtils';
 import {
   BOOKING_STATUS,
   isPendingStatus,
@@ -165,7 +165,9 @@ const AgencyHomeDashboard = ({
         if (booking) {
           dayStatuses[day.date] = {
             status: booking.status,
-            projectName: booking.projectName
+            projectName: booking.projectName,
+            phaseName: booking.phaseName || null,
+            bookingType: booking.type
           };
         }
       });
@@ -273,21 +275,44 @@ const AgencyHomeDashboard = ({
                 Gesamtwert: {pipeline.options.value.toLocaleString('de-DE')}€
               </p>
               <div className="space-y-2">
-                {pipeline.options.bookings.slice(0, 2).map(option => (
-                  <div key={option.id} className="flex justify-between items-center p-2 bg-white dark:bg-gray-800 rounded-lg">
-                    <div>
-                      <span className="font-medium text-sm text-gray-900 dark:text-white">{option.freelancerName}</span>
-                      <span className="text-gray-500 dark:text-gray-400 text-sm"> • {option.projectName}</span>
-                    </div>
-                    <button
-                      onClick={() => onConvertToFix(option)}
-                      className="px-3 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors"
+                {pipeline.options.bookings.slice(0, 3).map(option => {
+                  const sortedDates = [...option.dates].sort();
+                  const firstDate = sortedDates[0];
+                  const lastDate = sortedDates[sortedDates.length - 1];
+                  const dateDisplay = sortedDates.length === 1
+                    ? formatDateShort(firstDate)
+                    : `${formatDateShort(firstDate)} – ${formatDateShort(lastDate)}`;
+
+                  return (
+                    <div
+                      key={option.id}
+                      onClick={() => onSelectProject(option.projectId)}
+                      className="p-3 bg-white dark:bg-gray-800 rounded-lg cursor-pointer hover:ring-2 hover:ring-yellow-400 transition-all"
                     >
-                      Fix buchen
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <span className="font-medium text-gray-900 dark:text-white">{option.freelancerName}</span>
+                          <div className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                            {option.projectName} • {option.phaseName || 'Phase'}
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-1" />
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">
+                          {dateDisplay} ({sortedDates.length} Tag{sortedDates.length !== 1 ? 'e' : ''})
+                        </span>
+                        <span className="font-semibold text-yellow-700 dark:text-yellow-400">
+                          {option.totalCost?.toLocaleString('de-DE') || 0}€
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+              <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-3">
+                Klicke auf eine Option um zur Projektansicht zu gelangen
+              </p>
             </div>
           </div>
         </div>
@@ -658,10 +683,10 @@ const TeamTimeline = ({ data }) => {
                     : 'bg-gray-100 dark:bg-gray-700';
 
                 return (
-                  <div
+                  <TimelineCell
                     key={day.date}
-                    className={`w-8 h-6 ${bgColor} rounded-sm mx-px`}
-                    title={status ? `${status.projectName}` : ''}
+                    bgColor={bgColor}
+                    status={status}
                   />
                 );
               })}
@@ -681,6 +706,41 @@ const TeamTimeline = ({ data }) => {
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+/**
+ * Timeline Cell mit Tooltip für Projekt-Info
+ */
+const TimelineCell = ({ bgColor, status }) => {
+  const [showTooltip, setShowTooltip] = React.useState(false);
+
+  return (
+    <div
+      className={`relative w-8 h-6 ${bgColor} rounded-sm mx-px cursor-default`}
+      onMouseEnter={() => status && setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      {showTooltip && status && (
+        <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 pointer-events-none">
+          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+            <div className="font-semibold">{status.projectName}</div>
+            {status.phaseName && (
+              <div className="text-gray-300">{status.phaseName}</div>
+            )}
+            <div className={`text-xs mt-1 ${
+              status.status === BOOKING_STATUS.FIX_CONFIRMED
+                ? 'text-red-300'
+                : 'text-yellow-300'
+            }`}>
+              {status.status === BOOKING_STATUS.FIX_CONFIRMED ? 'Fix gebucht' : 'Option'}
+            </div>
+          </div>
+          {/* Arrow */}
+          <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-gray-900 rotate-45" />
+        </div>
+      )}
     </div>
   );
 };

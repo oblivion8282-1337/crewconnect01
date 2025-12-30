@@ -1,14 +1,295 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
-  Search, MapPin, Globe, Laptop, Star, Heart, Filter,
+  Search, MapPin, Globe, Laptop, Star, Heart,
   ChevronDown, ChevronUp, X, Mail, Phone, ExternalLink,
   Calendar, Users, Euro, Briefcase, Check, CheckSquare, Square
 } from 'lucide-react';
+
+/**
+ * Durchsuchbares Single-Select Dropdown
+ */
+const SearchableSelect = ({ value, onChange, options, placeholder }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const containerRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filter options based on search term
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm.trim()) return options;
+    return options.filter(opt =>
+      opt.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [options, searchTerm]);
+
+  const handleSelect = (option) => {
+    onChange(option);
+    setIsOpen(false);
+    setSearchTerm('');
+  };
+
+  const handleClear = (e) => {
+    e.stopPropagation();
+    onChange('');
+    setSearchTerm('');
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div
+        className="min-h-[38px] px-3 py-2 flex items-center justify-between border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 cursor-pointer"
+        onClick={() => {
+          setIsOpen(!isOpen);
+          if (!isOpen) setTimeout(() => inputRef.current?.focus(), 0);
+        }}
+      >
+        <span className={`text-sm ${value ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+          {value || placeholder}
+        </span>
+        <div className="flex items-center gap-1">
+          {value && (
+            <button
+              onClick={handleClear}
+              className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+            >
+              <X className="w-3.5 h-3.5 text-gray-400" />
+            </button>
+          )}
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg overflow-hidden">
+          {/* Suchfeld */}
+          <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Suchen..."
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          {/* Optionen */}
+          <div className="max-h-48 overflow-y-auto">
+            <button
+              onClick={() => handleSelect('')}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                !value ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              Alle
+            </button>
+            {filteredOptions.map(option => (
+              <button
+                key={option}
+                onClick={() => handleSelect(option)}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  option === value
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                    : 'text-gray-900 dark:text-white'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+            {filteredOptions.length === 0 && searchTerm && (
+              <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                Keine Ergebnisse für "{searchTerm}"
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Durchsuchbares Multi-Select Dropdown (Design wie SearchableSelect)
+ */
+const MultiSearchableSelect = ({ values = [], onChange, options, placeholder, tagColorClass }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const containerRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filter options based on search term (exclude already selected)
+  const filteredOptions = useMemo(() => {
+    let filtered = options.filter(opt => !values.includes(opt));
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(opt =>
+        opt.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    return filtered;
+  }, [options, searchTerm, values]);
+
+  const handleSelect = (option) => {
+    onChange([...values, option]);
+    setSearchTerm('');
+    inputRef.current?.focus();
+  };
+
+  const handleRemove = (option, e) => {
+    e?.stopPropagation();
+    onChange(values.filter(v => v !== option));
+  };
+
+  const handleClearAll = (e) => {
+    e.stopPropagation();
+    onChange([]);
+    setSearchTerm('');
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && searchTerm.trim()) {
+      e.preventDefault();
+      // Add custom search term if not in options
+      if (!values.includes(searchTerm.trim())) {
+        onChange([...values, searchTerm.trim()]);
+        setSearchTerm('');
+      }
+    } else if (e.key === 'Backspace' && !searchTerm && values.length > 0) {
+      // Remove last tag on backspace when input is empty
+      onChange(values.slice(0, -1));
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      {/* Hauptfeld - klickbar zum Öffnen */}
+      <div
+        className="min-h-[38px] px-3 py-2 flex items-center justify-between border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 cursor-pointer"
+        onClick={() => {
+          setIsOpen(!isOpen);
+          if (!isOpen) setTimeout(() => inputRef.current?.focus(), 0);
+        }}
+      >
+        <div className="flex-1 min-w-0 flex flex-wrap gap-1 items-center">
+          {values.length === 0 ? (
+            <span className="text-sm text-gray-400 dark:text-gray-500">{placeholder}</span>
+          ) : (
+            values.map(val => (
+              <span
+                key={val}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${tagColorClass}`}
+              >
+                {val}
+                <button
+                  onClick={(e) => handleRemove(val, e)}
+                  className="hover:opacity-70"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))
+          )}
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+          {values.length > 0 && (
+            <button
+              onClick={handleClearAll}
+              className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+            >
+              <X className="w-3.5 h-3.5 text-gray-400" />
+            </button>
+          )}
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
+      </div>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg overflow-hidden">
+          {/* Suchfeld */}
+          <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Suchen..."
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          {/* Optionen */}
+          <div className="max-h-48 overflow-y-auto">
+            {searchTerm.trim() && !options.includes(searchTerm.trim()) && !values.includes(searchTerm.trim()) && (
+              <button
+                onClick={() => {
+                  onChange([...values, searchTerm.trim()]);
+                  setSearchTerm('');
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-700"
+              >
+                "{searchTerm}" hinzufügen
+              </button>
+            )}
+            {filteredOptions.length === 0 && !searchTerm.trim() && (
+              <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                Alle Optionen ausgewählt
+              </div>
+            )}
+            {filteredOptions.length === 0 && searchTerm.trim() && options.some(o => o.toLowerCase().includes(searchTerm.toLowerCase())) && (
+              <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                Keine weiteren Ergebnisse
+              </div>
+            )}
+            {filteredOptions.map(option => (
+              <button
+                key={option}
+                onClick={() => handleSelect(option)}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white transition-colors"
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 import { formatDateShort, getDateRange, parseLocalDate } from '../../utils/dateUtils';
-import { PROFESSIONS } from '../../constants/profileOptions';
+import { PROFESSIONS, SKILLS, EQUIPMENT } from '../../constants/profileOptions';
 import DateRangePicker from '../shared/DateRangePicker';
 import ResizableModal from '../shared/ResizableModal';
 import FavoriteButton from '../shared/FavoriteButton';
+import BookingConfirmationModal from './BookingConfirmationModal';
 
 /**
  * FreelancerSearchModal - Umfangreiche Freelancer-Suche als Modal
@@ -37,6 +318,8 @@ const FreelancerSearchModal = ({
   const [filters, setFilters] = useState({
     name: '',
     profession: '',
+    skills: [],
+    equipment: [],
     city: '',
     country: '',
     radius: 50,
@@ -44,8 +327,6 @@ const FreelancerSearchModal = ({
     onlyFullyAvailable: false,
     favoritesOnly: false
   });
-
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Custom Date Range (wenn Phase kein Datum hat)
   const [customDateRange, setCustomDateRange] = useState({
@@ -61,6 +342,9 @@ const FreelancerSearchModal = ({
   const [bookingType, setBookingType] = useState('option');
   const [includeWeekends, setIncludeWeekends] = useState(false);
   const [lastClickedIndex, setLastClickedIndex] = useState(null);
+
+  // Confirmation Modal State
+  const [confirmationModal, setConfirmationModal] = useState(null);
 
   // Datumsbereich: entweder aus Phase oder custom
   const effectiveStartDate = phaseHasDates ? phase.startDate : customDateRange.startDate;
@@ -130,6 +414,30 @@ const FreelancerSearchModal = ({
       // Beruf Filter
       if (filters.profession) {
         if (!freelancer.professions?.includes(filters.profession)) return false;
+      }
+
+      // Skills Filter (mehrere Skills, alle müssen matchen)
+      if (filters.skills.length > 0) {
+        const freelancerSkills = freelancer.skills || [];
+        const allSkillsMatch = filters.skills.every(filterSkill => {
+          const searchTerm = filterSkill.toLowerCase();
+          return freelancerSkills.some(skill =>
+            skill.toLowerCase().includes(searchTerm)
+          );
+        });
+        if (!allSkillsMatch) return false;
+      }
+
+      // Equipment Filter (mehrere Equipment-Items, alle müssen matchen)
+      if (filters.equipment.length > 0) {
+        const freelancerEquipment = freelancer.equipment || [];
+        const allEquipmentMatch = filters.equipment.every(filterEquip => {
+          const searchTerm = filterEquip.toLowerCase();
+          return freelancerEquipment.some(item =>
+            item.toLowerCase().includes(searchTerm)
+          );
+        });
+        if (!allEquipmentMatch) return false;
       }
 
       // Stadt Filter
@@ -235,8 +543,22 @@ const FreelancerSearchModal = ({
     }
   }, [selectedFreelancer, calculateAvailability]);
 
-  const handleSubmit = (rateInfo) => {
-    onBook(selectedFreelancer, selectedDays, bookingType, project, phase, rateInfo);
+  // Öffnet das Bestätigungs-Modal
+  const handleOpenConfirmation = (rateInfo) => {
+    setConfirmationModal({
+      freelancer: selectedFreelancer,
+      selectedDays,
+      bookingType,
+      project,
+      phase,
+      rateInfo
+    });
+  };
+
+  // Bestätigt die Buchung und schließt alles
+  const handleConfirmBooking = (rateInfoWithMessage) => {
+    onBook(selectedFreelancer, selectedDays, bookingType, project, phase, rateInfoWithMessage);
+    setConfirmationModal(null);
     onClose();
   };
 
@@ -244,6 +566,8 @@ const FreelancerSearchModal = ({
     setFilters({
       name: '',
       profession: '',
+      skills: [],
+      equipment: [],
       city: '',
       country: '',
       radius: 50,
@@ -261,17 +585,41 @@ const FreelancerSearchModal = ({
     return `${start.getDate()}. ${monthNames[start.getMonth()]} – ${end.getDate()}. ${monthNames[end.getMonth()]} ${end.getFullYear()}`;
   };
 
-  const modalSubtitle = `${project.name} → ${phase.name}${hasValidDateRange ? ` • ${formatDateDisplay(effectiveStartDate, effectiveEndDate)}` : ''}`;
+  // Custom Header mit prominenter Projekt/Phase/Zeitraum Anzeige (einzeilig, zentriert)
+  const customSubtitle = (
+    <div className="flex items-center gap-2">
+      <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded font-medium text-sm">
+        {project.name}
+      </span>
+      <span className="text-gray-400 dark:text-gray-500">→</span>
+      <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded font-medium text-sm">
+        {phase.name}
+      </span>
+      {hasValidDateRange && (
+        <>
+          <span className="text-gray-400 dark:text-gray-500">•</span>
+          <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded font-medium text-sm">
+            <Calendar className="w-3.5 h-3.5" />
+            {formatDateDisplay(effectiveStartDate, effectiveEndDate)}
+          </span>
+        </>
+      )}
+    </div>
+  );
+
+  // Modal soll 80% der Breite und 90% der Höhe des Browserfensters ausfüllen
+  const modalWidth = Math.round(window.innerWidth * 0.8);
+  const modalHeight = Math.round(window.innerHeight * 0.9);
 
   return (
     <ResizableModal
       title="Freelancer suchen"
-      subtitle={modalSubtitle}
+      subtitle={customSubtitle}
       onClose={onClose}
-      defaultWidth={1000}
-      defaultHeight={700}
-      minWidth={600}
-      minHeight={400}
+      defaultWidth={modalWidth}
+      defaultHeight={modalHeight}
+      minWidth={950}
+      minHeight={500}
     >
 
         {/* Datumsauswahl wenn Phase kein Datum hat */}
@@ -311,7 +659,7 @@ const FreelancerSearchModal = ({
 
         {/* Filter Section */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-          {/* Hauptfilter */}
+          {/* Hauptfilter - Erste Zeile */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
             {/* Name */}
             <div>
@@ -331,18 +679,41 @@ const FreelancerSearchModal = ({
             {/* Berufsfeld */}
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Berufsfeld</label>
-              <select
+              <SearchableSelect
                 value={filters.profession}
-                onChange={(e) => setFilters({ ...filters, profession: e.target.value })}
-                className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Alle Berufe</option>
-                {PROFESSIONS.map(prof => (
-                  <option key={prof} value={prof}>{prof}</option>
-                ))}
-              </select>
+                onChange={(val) => setFilters({ ...filters, profession: val })}
+                options={PROFESSIONS}
+                placeholder="Alle Berufe"
+              />
             </div>
 
+            {/* Skills */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Skills</label>
+              <MultiSearchableSelect
+                values={filters.skills}
+                onChange={(vals) => setFilters({ ...filters, skills: vals })}
+                options={SKILLS}
+                placeholder="Skills suchen..."
+                tagColorClass="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+              />
+            </div>
+
+            {/* Equipment */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Equipment</label>
+              <MultiSearchableSelect
+                values={filters.equipment}
+                onChange={(vals) => setFilters({ ...filters, equipment: vals })}
+                options={EQUIPMENT}
+                placeholder="Equipment suchen..."
+                tagColorClass="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
+              />
+            </div>
+          </div>
+
+          {/* Zweite Zeile: Stadt, Land & Toggle-Filter */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 items-end">
             {/* Stadt */}
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Stadt</label>
@@ -367,44 +738,18 @@ const FreelancerSearchModal = ({
                   type="text"
                   value={filters.country}
                   onChange={(e) => setFilters({ ...filters, country: e.target.value })}
-                  placeholder="z.B. Deutschland"
+                  placeholder="z.B. DE"
                   className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
-          </div>
 
-          {/* Erweiterte Filter Toggle */}
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            >
-              <Filter className="w-4 h-4" />
-              Erweiterte Filter
-              {showAdvancedFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-
-            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-              <span>{filteredFreelancers.length} Freelancer</span>
-              <button
-                onClick={handleReset}
-                className="text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                Filter zurücksetzen
-              </button>
-            </div>
-          </div>
-
-          {/* Erweiterte Filter */}
-          {showAdvancedFilters && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-              {/* Radius */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  Radius: {filters.radius} km
-                </label>
+            {/* Radius */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                Radius: {filters.radius}km
+              </label>
+              <div className="h-[38px] flex items-center">
                 <input
                   type="range"
                   min="10"
@@ -412,80 +757,88 @@ const FreelancerSearchModal = ({
                   step="10"
                   value={filters.radius}
                   onChange={(e) => setFilters({ ...filters, radius: parseInt(e.target.value) })}
-                  className="w-full accent-primary"
+                  className="w-full accent-primary h-2 cursor-pointer"
                 />
               </div>
-
-              {/* Remote */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={filters.remoteOnly}
-                    onChange={(e) => setFilters({ ...filters, remoteOnly: e.target.checked })}
-                    className="sr-only"
-                  />
-                  <div className={`w-9 h-5 rounded-full transition-colors ${
-                    filters.remoteOnly ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
-                  }`}>
-                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                      filters.remoteOnly ? 'translate-x-4' : 'translate-x-0'
-                    }`} />
-                  </div>
-                </div>
-                <span className="text-sm flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                  <Laptop className="w-4 h-4" />
-                  Nur Remote
-                </span>
-              </label>
-
-              {/* 100% Verfügbar */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={filters.onlyFullyAvailable}
-                    onChange={(e) => setFilters({ ...filters, onlyFullyAvailable: e.target.checked })}
-                    className="sr-only"
-                  />
-                  <div className={`w-9 h-5 rounded-full transition-colors ${
-                    filters.onlyFullyAvailable ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                  }`}>
-                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                      filters.onlyFullyAvailable ? 'translate-x-4' : 'translate-x-0'
-                    }`} />
-                  </div>
-                </div>
-                <span className="text-sm flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                  <Check className="w-4 h-4" />
-                  100% verfügbar
-                </span>
-              </label>
-
-              {/* Favoriten */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={filters.favoritesOnly}
-                    onChange={(e) => setFilters({ ...filters, favoritesOnly: e.target.checked })}
-                    className="sr-only"
-                  />
-                  <div className={`w-9 h-5 rounded-full transition-colors ${
-                    filters.favoritesOnly ? 'bg-red-500' : 'bg-gray-300 dark:bg-gray-600'
-                  }`}>
-                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                      filters.favoritesOnly ? 'translate-x-4' : 'translate-x-0'
-                    }`} />
-                  </div>
-                </div>
-                <span className="text-sm flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                  <Heart className="w-4 h-4" />
-                  Favoriten
-                </span>
-              </label>
             </div>
-          )}
+
+            {/* Toggle-Filter - gleiches Styling wie Input-Felder */}
+            <div className="min-w-0">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Filter</label>
+              <div className="min-h-[38px] px-2 flex items-center justify-between border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                {/* Remote */}
+                <label className="flex items-center gap-1 cursor-pointer" title="Nur Remote-Freelancer anzeigen">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={filters.remoteOnly}
+                      onChange={(e) => setFilters({ ...filters, remoteOnly: e.target.checked })}
+                      className="sr-only"
+                    />
+                    <div className={`w-9 h-5 rounded-full transition-colors ${
+                      filters.remoteOnly ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
+                    }`}>
+                      <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        filters.remoteOnly ? 'translate-x-4' : 'translate-x-0'
+                      }`} />
+                    </div>
+                  </div>
+                  <span className="text-[11px] text-gray-600 dark:text-gray-400">Remote</span>
+                </label>
+
+                {/* 100% Verfügbar */}
+                <label className="flex items-center gap-1 cursor-pointer" title="Nur 100% verfügbare Freelancer anzeigen">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={filters.onlyFullyAvailable}
+                      onChange={(e) => setFilters({ ...filters, onlyFullyAvailable: e.target.checked })}
+                      className="sr-only"
+                    />
+                    <div className={`w-9 h-5 rounded-full transition-colors ${
+                      filters.onlyFullyAvailable ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                    }`}>
+                      <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        filters.onlyFullyAvailable ? 'translate-x-4' : 'translate-x-0'
+                      }`} />
+                    </div>
+                  </div>
+                  <span className="text-[11px] text-gray-600 dark:text-gray-400">100%</span>
+                </label>
+
+                {/* Favoriten */}
+                <label className="flex items-center gap-1 cursor-pointer" title="Nur Favoriten anzeigen">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={filters.favoritesOnly}
+                      onChange={(e) => setFilters({ ...filters, favoritesOnly: e.target.checked })}
+                      className="sr-only"
+                    />
+                    <div className={`w-9 h-5 rounded-full transition-colors ${
+                      filters.favoritesOnly ? 'bg-red-500' : 'bg-gray-300 dark:bg-gray-600'
+                    }`}>
+                      <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        filters.favoritesOnly ? 'translate-x-4' : 'translate-x-0'
+                      }`} />
+                    </div>
+                  </div>
+                  <Heart className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Dritte Zeile: Info + Reset */}
+          <div className="flex items-center justify-end gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <span>{filteredFreelancers.length} Freelancer</span>
+            <button
+              onClick={handleReset}
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Reset
+            </button>
+          </div>
         </div>
 
         {/* Freelancer-Liste */}
@@ -526,13 +879,27 @@ const FreelancerSearchModal = ({
                   onDeselectAll={handleDeselectAll}
                   onToggleWeekends={handleToggleWeekends}
                   onTypeChange={setBookingType}
-                  onSubmit={handleSubmit}
+                  onSubmit={handleOpenConfirmation}
                   calculateAvailability={calculateAvailability}
                 />
               ))}
             </div>
           )}
         </div>
+
+      {/* Confirmation Modal */}
+      {confirmationModal && (
+        <BookingConfirmationModal
+          freelancer={confirmationModal.freelancer}
+          selectedDays={confirmationModal.selectedDays}
+          bookingType={confirmationModal.bookingType}
+          project={confirmationModal.project}
+          phase={confirmationModal.phase}
+          rateInfo={confirmationModal.rateInfo}
+          onConfirm={handleConfirmBooking}
+          onCancel={() => setConfirmationModal(null)}
+        />
+      )}
     </ResizableModal>
   );
 };
@@ -540,6 +907,42 @@ const FreelancerSearchModal = ({
 /**
  * Freelancer-Ergebnis-Karte mit Verfügbarkeit und Buchung
  */
+/**
+ * "...mehr" Button mit Popover für überlaufende Items
+ */
+const OverflowInfo = ({ items, label, colorClass }) => {
+  const [showPopover, setShowPopover] = useState(false);
+
+  if (!items || items.length === 0) return null;
+
+  return (
+    <span className="relative inline-flex items-center">
+      <button
+        onMouseEnter={() => setShowPopover(true)}
+        onMouseLeave={() => setShowPopover(false)}
+        className={`px-1.5 py-0.5 rounded ${colorClass} text-[10px] font-medium cursor-help leading-none`}
+      >
+        ...mehr
+      </button>
+      {showPopover && (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg shadow-xl p-2.5 min-w-[160px] max-w-[280px]">
+          <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">{label}</div>
+          <div className="flex flex-wrap gap-1">
+            {items.map(item => (
+              <span key={item} className={`px-1.5 py-0.5 rounded text-[10px] ${colorClass}`}>
+                {item}
+              </span>
+            ))}
+          </div>
+          {/* Pfeil nach oben */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-white dark:border-b-gray-800" />
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-r-[5px] border-b-[5px] border-transparent border-b-gray-200 dark:border-b-gray-600 -mb-px" />
+        </div>
+      )}
+    </span>
+  );
+};
+
 const FreelancerResultCard = ({
   freelancer,
   dateRange,
@@ -567,6 +970,9 @@ const FreelancerResultCard = ({
   const [rateType, setRateType] = useState('daily'); // 'daily' oder 'flat'
   const [customDayRate, setCustomDayRate] = useState(freelancer.dayRate || 0);
   const [flatRate, setFlatRate] = useState(0);
+  const [skillsContainerRef, setSkillsContainerRef] = useState(null);
+  const [visibleSkills, setVisibleSkills] = useState(6);
+  const [visibleEquipment, setVisibleEquipment] = useState(4);
 
   const isSelected = selectedFreelancer?.id === freelancer.id;
   const showBookingOptions = selectedDays.length > 0 && isSelected;
@@ -608,185 +1014,156 @@ const FreelancerResultCard = ({
 
   const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
+  // Skills und Equipment mit Overflow-Handling
+  const allSkills = freelancer.skills || [];
+  const allEquipment = (visibility.equipment !== false ? freelancer.equipment : null) || [];
+  const displayedSkills = allSkills.slice(0, visibleSkills);
+  const hiddenSkills = allSkills.slice(visibleSkills);
+  const displayedEquipment = allEquipment.slice(0, visibleEquipment);
+  const hiddenEquipment = allEquipment.slice(visibleEquipment);
+
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-xl border-2 transition-colors ${
-      isSelected ? 'border-blue-500 shadow-lg' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+    <div className={`bg-white dark:bg-gray-800 rounded-lg border transition-all ${
+      isSelected ? 'border-blue-500 shadow-lg ring-1 ring-blue-500' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
     }`}>
-      {/* Header */}
-      <div className="p-4">
-        <div className="flex gap-4">
+      {/* Kompakter Header */}
+      <div className="p-3">
+        <div className="flex items-start gap-3">
           {/* Avatar */}
-          <div className="text-4xl">{freelancer.avatar}</div>
+          <div className="text-3xl flex-shrink-0">{freelancer.avatar}</div>
 
-          {/* Info */}
+          {/* Haupt-Info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">{fullName}</h3>
-                  {freelancer.verified && (
-                    <span className="text-blue-500" title="Verifiziert">✓</span>
-                  )}
-                  <FavoriteButton
-                    freelancerId={freelancer.id}
-                    isFavorite={isFavorite}
-                    onToggle={onToggleFavorite}
-                    crewLists={crewLists}
-                    getListsForFreelancer={getListsForFreelancer}
-                    onAddToList={onAddToList}
-                    onRemoveFromList={onRemoveFromList}
-                    onOpenAddToListModal={onOpenAddToListModal}
-                    size="md"
-                  />
-                </div>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">{(freelancer.professions || []).join(', ')}</p>
-              </div>
-
-              {/* Rating & Tagessatz */}
-              <div className="text-right flex-shrink-0">
-                <div className="flex items-center gap-1 text-yellow-500">
-                  <Star className="w-4 h-4 fill-current" />
-                  <span className="font-medium">{freelancer.rating}</span>
-                </div>
-                {visibility.dayRate !== false && freelancer.dayRate && (
-                  <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{freelancer.dayRate}€/Tag</p>
-                )}
-              </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-gray-900 dark:text-white">{fullName}</h3>
+              {freelancer.verified && <span className="text-blue-500 text-sm">✓</span>}
+              <FavoriteButton
+                freelancerId={freelancer.id}
+                isFavorite={isFavorite}
+                onToggle={onToggleFavorite}
+                crewLists={crewLists}
+                getListsForFreelancer={getListsForFreelancer}
+                onAddToList={onAddToList}
+                onRemoveFromList={onRemoveFromList}
+                onOpenAddToListModal={onOpenAddToListModal}
+                size="sm"
+              />
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPercentageColor(availability.percentage)}`}>
+                {availability.percentage}%
+              </span>
             </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{(freelancer.professions || []).join(', ')}</p>
 
-            {/* Quick Info */}
-            <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-500 dark:text-gray-400">
+            {/* Meta-Info Zeile */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {visibility.dayRate !== false && freelancer.dayRate && (
+                <span className="font-semibold text-gray-700 dark:text-gray-300">{freelancer.dayRate}€/Tag</span>
+              )}
+              <span className="flex items-center gap-0.5 text-yellow-500">
+                <Star className="w-3 h-3 fill-current" />{freelancer.rating}
+              </span>
               {visibility.address !== false && freelancer.address?.city && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5" />
-                  {freelancer.address.city}
-                </span>
+                <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{freelancer.address.city}</span>
               )}
               {freelancer.remoteWork && (
-                <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                  <Laptop className="w-3.5 h-3.5" />
-                  Remote
-                </span>
+                <span className="flex items-center gap-0.5 text-green-600 dark:text-green-400"><Laptop className="w-3 h-3" />Remote</span>
               )}
               {freelancer.experience && (
-                <span className="flex items-center gap-1">
-                  <Briefcase className="w-3.5 h-3.5" />
-                  {freelancer.experience}J
-                </span>
+                <span>{freelancer.experience}J Erfahrung</span>
               )}
             </div>
-          </div>
-        </div>
 
-        {/* Verfügbarkeits-Summary */}
-        <div className="mt-3 flex items-center gap-3">
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPercentageColor(availability.percentage)}`}>
-            {availability.percentage}% verfügbar
-          </span>
-          <span className="text-xs text-gray-400 dark:text-gray-500">
-            {availability.availableDays} von {availability.totalWorkDays} Arbeitstagen
-          </span>
-        </div>
-      </div>
-
-      {/* Verfügbarkeits-Grid */}
-      <div className="px-4 pb-3">
-        <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-          {/* Selektion Controls */}
-          <div className="flex flex-wrap items-center gap-3 mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
-            {/* Alle auswählen / Alle abwählen */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => onSelectAll(freelancer)}
-                className="px-3 py-1.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1"
-              >
-                <CheckSquare className="w-3.5 h-3.5" />
-                Alle auswählen
-              </button>
-              <button
-                onClick={onDeselectAll}
-                disabled={selectedCount === 0}
-                className="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Square className="w-3.5 h-3.5" />
-                Alle abwählen
-              </button>
-            </div>
-
-            {/* Wochenenden Switch */}
-            <label className="flex items-center gap-2 cursor-pointer ml-auto">
-              <span className="text-xs text-gray-600 dark:text-gray-400">Wochenenden</span>
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  checked={includeWeekends}
-                  onChange={(e) => onToggleWeekends(freelancer, e.target.checked)}
-                  className="sr-only"
-                />
-                <div className={`w-9 h-5 rounded-full transition-colors ${
-                  includeWeekends ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
-                }`}>
-                  <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                    includeWeekends ? 'translate-x-4' : 'translate-x-0'
-                  }`} />
-                </div>
+            {/* Skills & Equipment - so viele wie möglich + Info-Icon für Rest */}
+            {(allSkills.length > 0 || allEquipment.length > 0) && (
+              <div className="flex flex-wrap items-center gap-1 mt-2">
+                {displayedSkills.map(skill => (
+                  <span key={skill} className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-[10px]">
+                    {skill}
+                  </span>
+                ))}
+                {hiddenSkills.length > 0 && (
+                  <OverflowInfo
+                    items={hiddenSkills}
+                    label={`+${hiddenSkills.length} weitere Skills`}
+                    colorClass="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                  />
+                )}
+                {displayedEquipment.map(item => (
+                  <span key={item} className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded text-[10px]">
+                    {item}
+                  </span>
+                ))}
+                {hiddenEquipment.length > 0 && (
+                  <OverflowInfo
+                    items={hiddenEquipment}
+                    label={`+${hiddenEquipment.length} weiteres Equipment`}
+                    colorClass="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
+                  />
+                )}
               </div>
-            </label>
-
-            {/* Selektions-Info */}
-            {selectedCount > 0 && (
-              <span className="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
-                {selectedCount} Tag{selectedCount !== 1 ? 'e' : ''} ausgewählt
-              </span>
             )}
           </div>
 
-          {/* Shift-Klick Hinweis */}
-          <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">
-            Shift + Klick für Mehrfachauswahl
-          </p>
+        </div>
+      </div>
 
-          {/* Tage-Grid */}
-          <div className="flex flex-wrap gap-4">
+      {/* Kalender-Grid - größer */}
+      <div className="px-3 pb-3">
+        <div className="flex items-start gap-4">
+          {/* Controls links */}
+          <div className="flex flex-col gap-1.5 flex-shrink-0 pt-4">
+            <button
+              onClick={() => onSelectAll(freelancer)}
+              className="px-2.5 py-1.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 whitespace-nowrap"
+            >
+              Alle auswählen
+            </button>
+            <button
+              onClick={onDeselectAll}
+              disabled={selectedCount === 0}
+              className="px-2.5 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 whitespace-nowrap"
+            >
+              Keine auswählen
+            </button>
+            <label className="flex items-center gap-2 cursor-pointer px-2.5 py-1.5 bg-gray-50 dark:bg-gray-700/50 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+              <input
+                type="checkbox"
+                checked={includeWeekends}
+                onChange={(e) => onToggleWeekends(freelancer, e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-gray-300 dark:border-gray-600 text-blue-500 focus:ring-blue-500"
+              />
+              <span className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Wochenenden</span>
+            </label>
+          </div>
+
+          {/* Tage-Grid - größer */}
+          <div className="flex flex-wrap gap-4 flex-1">
             {Object.values(monthGroups).map(group => (
               <div key={`${group.year}-${group.month}`} className="flex-shrink-0">
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  {monthNames[group.month]} {group.year}
+                  {monthNames[group.month]}
                 </div>
-                <div className="flex flex-wrap gap-0.5" style={{ maxWidth: '160px' }}>
+                <div className="flex flex-wrap gap-0.5" style={{ maxWidth: '238px' }}>
                   {group.days.map(day => {
                     const isSelectedDay = selectedDays.includes(day.dateStr) && isSelected;
                     const statusColor = day.status?.color;
-                    const isYellow = statusColor === 'yellow'; // Meine pending/Option
-                    const isRed = statusColor === 'red'; // Fix-Buchung oder geblockt
+                    const isYellow = statusColor === 'yellow';
+                    const isRed = statusColor === 'red';
                     const isBookable = day.isAvailable || (includeWeekends && day.isWeekend);
-
-                    // Tooltip-Text basierend auf Status
-                    const getTooltip = () => {
-                      if (day.isWeekend) return 'Wochenende';
-                      if (isYellow) {
-                        const booking = day.status?.booking;
-                        if (day.status?.status === 'pending') return `Meine Anfrage (pending)`;
-                        return `Meine Option`;
-                      }
-                      if (isRed) return 'Fix gebucht / Belegt';
-                      if (day.isAvailable) return 'Verfügbar';
-                      return 'Nicht verfügbar';
-                    };
 
                     return (
                       <button
                         key={day.dateStr}
                         onClick={(e) => onDayClick(freelancer, day.index, day, e.shiftKey)}
                         disabled={!isBookable}
-                        title={`${day.date.getDate()}. ${monthNames[day.date.getMonth()]} - ${getTooltip()}${isSelectedDay ? ' (ausgewählt)' : ''}`}
-                        className={`w-5 h-5 rounded text-[9px] flex items-center justify-center font-medium transition-all ${
+                        title={`${day.date.getDate()}. ${monthNames[day.date.getMonth()]} (Shift+Klick für Mehrfachauswahl)`}
+                        className={`w-8 h-5 rounded text-[10px] flex items-center justify-center font-medium transition-all ${
                           isSelectedDay
-                            ? 'bg-blue-600 text-white ring-2 ring-blue-300 ring-offset-1'
+                            ? 'bg-blue-600 text-white ring-2 ring-blue-300'
                             : day.isWeekend
                               ? includeWeekends
-                                ? 'bg-gray-300 text-gray-600 hover:bg-gray-400 cursor-pointer'
-                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                ? 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-400 cursor-pointer'
+                                : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                               : isYellow
                                 ? 'bg-yellow-400 text-yellow-900 cursor-not-allowed'
                                 : isRed
@@ -804,104 +1181,58 @@ const FreelancerResultCard = ({
               </div>
             ))}
           </div>
+        </div>
 
-          {/* Legende */}
-          <div className="flex flex-wrap gap-4 mt-3 text-xs text-gray-500 dark:text-gray-400">
-            <span className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-blue-600 ring-2 ring-blue-300 ring-offset-1" /> Ausgewählt
-            </span>
-            <span className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-green-500" /> Verfügbar
-            </span>
-            <span className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-yellow-400" /> Meine Anfrage/Option
-            </span>
-            <span className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-red-500" /> Fix gebucht
-            </span>
-            <span className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-gray-200 dark:bg-gray-600" /> Wochenende
-            </span>
-          </div>
+        {/* Selection Info + Expand Button */}
+        <div className="flex items-center justify-between mt-2">
+          {selectedCount > 0 ? (
+            <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+              {selectedCount} Tag{selectedCount !== 1 ? 'e' : ''} ausgewählt
+            </div>
+          ) : (
+            <div />
+          )}
+
+          {/* Aufklapp-Button für Profildetails */}
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            <span>{expanded ? 'Weniger anzeigen' : 'Mehr Details'}</span>
+            {expanded ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </button>
         </div>
       </div>
 
-      {/* Mehr anzeigen */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full py-2 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-1"
-      >
-        {expanded ? 'Weniger' : 'Mehr Infos'}
-        {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-      </button>
-
-      {/* Erweiterte Infos */}
+      {/* Erweiterte Infos - ohne Skills/Equipment Tags */}
       {expanded && (
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 space-y-3">
+        <div className="px-3 pb-3 pt-1 border-t border-gray-100 dark:border-gray-700 space-y-2">
           {visibility.bio !== false && freelancer.bio && (
-            <div>
-              <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Über mich</h4>
-              <p className="text-sm text-gray-700 dark:text-gray-300">{freelancer.bio}</p>
-            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400">{freelancer.bio}</p>
           )}
-
-          {freelancer.skills?.length > 0 && (
-            <div>
-              <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Skills</h4>
-              <div className="flex flex-wrap gap-1">
-                {freelancer.skills.map(skill => (
-                  <span key={skill} className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-xs">
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {visibility.equipment !== false && freelancer.equipment?.length > 0 && (
-            <div>
-              <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Equipment</h4>
-              <div className="flex flex-wrap gap-1">
-                {freelancer.equipment.map(item => (
-                  <span key={item} className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded text-xs">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
+          {/* Sprachen */}
           {freelancer.languages?.length > 0 && (
-            <div>
-              <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Sprachen</h4>
-              <div className="flex flex-wrap gap-1">
-                {freelancer.languages.map(lang => (
-                  <span key={lang} className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs">
-                    {lang}
-                  </span>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">Sprachen:</span>
+              {freelancer.languages.map(lang => (
+                <span key={lang} className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-[10px]">{lang}</span>
+              ))}
             </div>
           )}
-
           {/* Kontakt */}
-          <div className="flex flex-wrap gap-3 pt-2">
+          <div className="flex flex-wrap gap-3 text-xs">
             {visibility.email !== false && freelancer.email && (
-              <a href={`mailto:${freelancer.email}`} className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
-                <Mail className="w-3.5 h-3.5" />
-                {freelancer.email}
+              <a href={`mailto:${freelancer.email}`} className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                <Mail className="w-3 h-3" />{freelancer.email}
               </a>
             )}
             {visibility.phone !== false && freelancer.phone && (
-              <a href={`tel:${freelancer.phone}`} className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5" />
-                {freelancer.phone}
-              </a>
-            )}
-            {visibility.website !== false && freelancer.website && (
-              <a href={freelancer.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
-                <ExternalLink className="w-3.5 h-3.5" />
-                Website
+              <a href={`tel:${freelancer.phone}`} className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                <Phone className="w-3 h-3" />{freelancer.phone}
               </a>
             )}
           </div>

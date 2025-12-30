@@ -11,6 +11,7 @@ import {
   Star
 } from 'lucide-react';
 import { PROFESSIONS } from '../../constants/profileOptions';
+import { AVAILABILITY_COLORS } from '../../constants/calendar';
 import FavoriteButton from '../shared/FavoriteButton';
 
 /**
@@ -134,11 +135,8 @@ const AgencyFreelancerSearch = ({
     });
   };
 
-  const availabilityColors = {
-    green: 'bg-green-500',
-    yellow: 'bg-yellow-500',
-    red: 'bg-red-500'
-  };
+  // Verwende zentrale Farb-Konstante aus calendar.js
+  const availabilityColors = AVAILABILITY_COLORS;
 
   const availabilityLabels = {
     green: 'Verfügbar',

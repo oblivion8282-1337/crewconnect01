@@ -52,7 +52,7 @@ const App = () => {
   const [agencyId, setAgencyId] = useState(1);
 
   // === UI State ===
-  const [userRole, setUserRole] = useState(USER_ROLES.FREELANCER);
+  const [userRole, setUserRole] = useState(USER_ROLES.AGENCY);
   const [currentView, setCurrentView] = useState('dashboard');
   const [currentDate, setCurrentDate] = useState(new Date(2025, 0, 1));
   const [showNotifications, setShowNotifications] = useState(false);
@@ -298,27 +298,8 @@ const App = () => {
   const handleCreateBooking = (freelancer, dates, requestType, project, phase, rateInfo = {}) => {
     const result = createBooking(freelancer, dates, requestType, project, phase, rateInfo);
 
-    if (result.success && result.booking) {
-      // Prüfe ob Chat existiert und sende booking_ref
-      const chat = findChatForBooking(agencyId, freelancer.id);
-      if (chat) {
-        const bookingType = requestType === 'fix' ? 'Fix-Buchung' : 'Option';
-        sendBookingRef(
-          chat.id,
-          agencyId,
-          'agency',
-          agencyProfile?.name || 'Agentur',
-          `Neue ${bookingType}-Anfrage`,
-          {
-            bookingId: result.booking.id,
-            projectName: project.name,
-            dates: result.booking.dates,
-            status: result.booking.status,
-            type: requestType
-          }
-        );
-      }
-    }
+    // Anfragen erscheinen nur im Anfragen-Tab, NICHT als Chat-Nachricht
+    // (Der Freelancer sieht die Anfrage im Anfragen-Tab mit allen Details)
 
     return result;
   };
@@ -501,6 +482,7 @@ const App = () => {
               currentDate={currentDate}
               onDateChange={setCurrentDate}
               getDayStatus={getDayStatus}
+              freelancerId={freelancerId}
               openForMoreDays={openForMoreDays}
               onBlockDay={blockDay}
               onBlockDayOpen={blockDayOpen}

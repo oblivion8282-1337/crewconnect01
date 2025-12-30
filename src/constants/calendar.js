@@ -67,7 +67,22 @@ export const DAY_STATUS_COLORS = {
   purple: 'bg-purple-500 text-white',
   yellow: 'bg-yellow-400 text-gray-800',
   red: 'bg-red-500 text-white',
-  striped: 'bg-gradient-to-br from-red-500 to-green-500 text-white'
+  striped: 'bg-[length:8px_8px] bg-[linear-gradient(135deg,#ef4444_25%,#22c55e_25%,#22c55e_50%,#ef4444_50%,#ef4444_75%,#22c55e_75%)] text-white'
+};
+
+/**
+ * Farb-Mapping für Verfügbarkeits-Anzeige (Dots in Suchergebnissen)
+ *
+ * | Farbe | Bedeutung |
+ * |-------|-----------|
+ * | 🟢 Grün | Vollständig verfügbar |
+ * | 🟡 Gelb | Teilweise belegt |
+ * | 🔴 Rot | Ausgebucht |
+ */
+export const AVAILABILITY_COLORS = {
+  green: 'bg-green-500',
+  yellow: 'bg-yellow-400',
+  red: 'bg-red-500'
 };
 
 /** Benutzerrollen */

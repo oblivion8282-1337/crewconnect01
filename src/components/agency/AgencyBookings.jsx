@@ -15,7 +15,6 @@ const AgencyBookings = ({
   bookings,
   agencyId,
   onWithdraw,
-  onConvertToFix,
   onReschedule,
   onCancel,
   onWithdrawReschedule
@@ -76,7 +75,6 @@ const AgencyBookings = ({
           {/* Bestätigte Buchungen */}
           <ConfirmedSection
             bookings={confirmedBookings}
-            onConvertToFix={onConvertToFix}
             onReschedule={onReschedule}
             onCancel={onCancel}
           />
@@ -173,7 +171,7 @@ const PendingSection = ({ bookings, onWithdraw, onReschedule }) => (
 /**
  * Sektion für bestätigte Buchungen
  */
-const ConfirmedSection = ({ bookings, onConvertToFix, onReschedule, onCancel }) => (
+const ConfirmedSection = ({ bookings, onReschedule, onCancel }) => (
   <>
     <h2 className="font-semibold mb-3 text-gray-900 dark:text-white">✅ Bestätigt ({bookings.length})</h2>
     {bookings.length === 0 ? (
@@ -185,7 +183,6 @@ const ConfirmedSection = ({ bookings, onConvertToFix, onReschedule, onCancel }) 
         <ConfirmedBookingCard
           key={booking.id}
           booking={booking}
-          onConvertToFix={onConvertToFix}
           onReschedule={onReschedule}
           onCancel={onCancel}
         />
@@ -197,29 +194,38 @@ const ConfirmedSection = ({ bookings, onConvertToFix, onReschedule, onCancel }) 
 /**
  * Karte für eine bestätigte Buchung
  */
-const ConfirmedBookingCard = ({ booking, onConvertToFix, onReschedule, onCancel }) => {
+const ConfirmedBookingCard = ({ booking, onReschedule, onCancel }) => {
   const isFixBooking = booking.status === BOOKING_STATUS.FIX_CONFIRMED;
   const cardStyle = isFixBooking
     ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800'
     : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800';
 
   return (
-    <div className={`p-4 rounded-card mb-2 flex justify-between items-center ${cardStyle}`}>
-      <div>
-        <p className="font-medium text-gray-900 dark:text-white">{booking.freelancerName}</p>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          {booking.projectName} • {booking.dates.map(formatDateShort).join(', ')} • {booking.totalCost}€
-        </p>
+    <div className={`p-4 rounded-card mb-2 ${cardStyle}`}>
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <p className="font-medium text-gray-900 dark:text-white">{booking.freelancerName}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {booking.projectName} • {booking.phaseName || 'Phase'}
+          </p>
+        </div>
+        <span className={`px-2 py-1 rounded text-xs font-medium ${
+          isFixBooking
+            ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
+            : 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400'
+        }`}>
+          {isFixBooking ? 'Fix' : 'Option'}
+        </span>
       </div>
-      <div className="flex gap-2">
-        {!isFixBooking && (
-          <button
-            onClick={() => onConvertToFix(booking)}
-            className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition-colors"
-          >
-            Fix
-          </button>
-        )}
+      <div className="flex justify-between items-center text-sm mb-3">
+        <span className="text-gray-500 dark:text-gray-400">
+          {booking.dates.map(formatDateShort).join(', ')}
+        </span>
+        <span className="font-semibold text-gray-700 dark:text-gray-300">
+          {booking.totalCost?.toLocaleString('de-DE') || 0}€
+        </span>
+      </div>
+      <div className="flex gap-2 justify-end">
         <button
           onClick={() => onReschedule(booking)}
           className="px-3 py-1.5 border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-400 rounded-lg text-sm flex items-center gap-1 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"

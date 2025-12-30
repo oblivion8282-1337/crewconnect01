@@ -224,7 +224,7 @@ const ProjectDetail = ({
         {/* Kunde */}
         <div className="bg-white dark:bg-gray-800 rounded-card border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Kunde</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Ansprechpartner</h2>
             {editingSection !== 'client' && (
               <button
                 onClick={() => handleStartEdit('client', project.clientContact || {})}
@@ -344,26 +344,10 @@ const ProjectDetail = ({
               Projekt in Phasen aufteilen
             </h2>
 
-            <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-6 leading-relaxed">
-              <strong>Phasen</strong> sind die verschiedenen Abschnitte deines Projekts.
+            <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-8 leading-relaxed">
+              <strong>Phasen</strong> sind die verschiedenen Abschnitte deines Projekts (z.B. Drehphase, Schnittphase, etc.).
               Für jede Phase kannst du separat Freelancer suchen und buchen.
             </p>
-
-            {/* Beispiele */}
-            <div className="flex flex-wrap justify-center gap-2 mb-8">
-              <span className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-full text-sm font-medium">
-                Drehphase
-              </span>
-              <span className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-full text-sm font-medium">
-                Post-Production
-              </span>
-              <span className="px-3 py-1.5 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 rounded-full text-sm font-medium">
-                Pre-Production
-              </span>
-              <span className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-full text-sm font-medium">
-                Sounddesign
-              </span>
-            </div>
 
             <button
               onClick={() => setShowAddPhase(true)}
@@ -1048,10 +1032,10 @@ const AddPhaseModal = ({ projectId, onSave, onClose }) => {
     <ResizableModal
       title="Neue Phase"
       onClose={onClose}
-      defaultWidth={500}
-      defaultHeight={showDatePicker ? 550 : 350}
-      minWidth={400}
-      minHeight={300}
+      defaultWidth={550}
+      defaultHeight={480}
+      minWidth={450}
+      minHeight={380}
     >
       <form onSubmit={handleSubmit} className="p-4 space-y-4 flex-1 overflow-y-auto">
         <div>
@@ -1078,7 +1062,9 @@ const AddPhaseModal = ({ projectId, onSave, onClose }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Zeitraum</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Zeitraum <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
           <button
             type="button"
             onClick={() => setShowDatePicker(!showDatePicker)}
@@ -1087,7 +1073,7 @@ const AddPhaseModal = ({ projectId, onSave, onClose }) => {
             <span className={formData.startDate ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}>
               {formData.startDate && formData.endDate
                 ? `${formatDate(formData.startDate)} – ${formatDate(formData.endDate)}`
-                : 'Zeitraum auswählen'}
+                : 'Zeitraum auswählen (optional)'}
             </span>
             <ChevronDown className={`w-5 h-5 ${showDatePicker ? 'rotate-180' : ''}`} />
           </button>

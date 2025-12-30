@@ -372,6 +372,7 @@ export const useBookings = (freelancerId, agencyId) => {
       agencyAvatar,
       projectId: project.id,
       projectName: project.name,
+      projectDescription: project.description || null,
       phaseId: phase.id,
       phaseName: phase.name,
       freelancerId: freelancer.id,
@@ -381,6 +382,7 @@ export const useBookings = (freelancerId, agencyId) => {
       dayRate,
       flatRate,
       totalCost,
+      message: rateInfo.message || null,
       requestedAt: new Date().toISOString()
     };
 
