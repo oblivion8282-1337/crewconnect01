@@ -175,9 +175,10 @@ const DateRangePicker = ({ startDate, endDate, onChange }) => {
           <button
             type="button"
             onClick={() => navigateMiniMonth(-1)}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Vorheriger Monat"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" aria-hidden="true" />
           </button>
           <span className="text-sm font-medium">
             {shortMonthNames[miniMonth.getMonth()]} {miniMonth.getFullYear()}
@@ -185,9 +186,10 @@ const DateRangePicker = ({ startDate, endDate, onChange }) => {
           <button
             type="button"
             onClick={() => navigateMiniMonth(1)}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Nächster Monat"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -345,16 +347,18 @@ const DateRangePicker = ({ startDate, endDate, onChange }) => {
         <button
           type="button"
           onClick={() => navigateMonth(-1)}
-          className="p-1 hover:bg-gray-200 rounded transition-colors"
+          className="p-1 hover:bg-gray-200 rounded-lg transition-colors"
+          aria-label="Vorherige Monate"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5" aria-hidden="true" />
         </button>
         <button
           type="button"
           onClick={() => navigateMonth(1)}
-          className="p-1 hover:bg-gray-200 rounded transition-colors"
+          className="p-1 hover:bg-gray-200 rounded-lg transition-colors"
+          aria-label="Nächste Monate"
         >
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
 

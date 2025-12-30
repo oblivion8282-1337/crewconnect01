@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import ResizableModal from '../shared/ResizableModal';
 
 /**
@@ -6,16 +7,24 @@ import ResizableModal from '../shared/ResizableModal';
  */
 const CancelBookingModal = ({ booking, onCancel, onClose }) => {
   const [reason, setReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!booking) return null;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!reason.trim()) {
       alert('Bitte Grund angeben');
       return;
     }
-    onCancel(booking, reason);
-    onClose();
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      onCancel(booking, reason);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {
@@ -69,14 +78,23 @@ const CancelBookingModal = ({ booking, onCancel, onClose }) => {
           </button>
           <button
             onClick={handleSubmit}
+            disabled={isSubmitting || !reason.trim()}
             className="
               flex-1 py-2.5 rounded-xl font-medium
               bg-red-600 text-white
               hover:bg-red-700
-              transition-colors
+              disabled:opacity-50 disabled:cursor-not-allowed
+              transition-colors flex items-center justify-center gap-2
             "
           >
-            Stornieren
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Wird storniert...
+              </>
+            ) : (
+              'Stornieren'
+            )}
           </button>
         </div>
       </div>

@@ -95,7 +95,7 @@ export const useProjects = () => {
       phases: []
     };
     setProjects(prev => [...prev, newProject]);
-    return newProject.id;
+    return newProject;  // Gibt komplettes Objekt zurück für BookFromProfileModal
   }, []);
 
   /**
@@ -104,20 +104,22 @@ export const useProjects = () => {
    * @param {Object} phaseData - Daten der neuen Phase
    */
   const addPhase = useCallback((projectId, phaseData) => {
+    const newPhase = {
+      ...phaseData,
+      id: Date.now(),
+      budget: phaseData.budget || 0
+    };
+
     setProjects(prev => prev.map(project => {
       if (project.id !== projectId) return project;
-
-      const newPhase = {
-        ...phaseData,
-        id: Date.now(),
-        budget: phaseData.budget || 0
-      };
 
       return {
         ...project,
         phases: [...project.phases, newPhase]
       };
     }));
+
+    return newPhase;  // Gibt Phase-Objekt zurück für BookFromProfileModal
   }, []);
 
   /**

@@ -44,7 +44,15 @@ const PhaseDetail = ({
   onBook,
   onConvertToFix,
   onWithdraw,
-  onUpdatePhase
+  onUpdatePhase,
+  // Favoriten & Crew-Listen Props
+  isFavorite,
+  onToggleFavorite,
+  crewLists,
+  getListsForFreelancer,
+  onAddToList,
+  onRemoveFromList,
+  onOpenAddToListModal
 }) => {
   const [activeTab, setActiveTab] = useState('team');
   const [tasks, setTasks] = useState(phase.tasks || []);
@@ -849,6 +857,13 @@ const PhaseDetail = ({
           agencyId={agencyId}
           onBook={onBook}
           onClose={() => setShowSearch(false)}
+          isFavorite={isFavorite}
+          onToggleFavorite={onToggleFavorite}
+          crewLists={crewLists}
+          getListsForFreelancer={getListsForFreelancer}
+          onAddToList={onAddToList}
+          onRemoveFromList={onRemoveFromList}
+          onOpenAddToListModal={onOpenAddToListModal}
         />
       )}
     </div>

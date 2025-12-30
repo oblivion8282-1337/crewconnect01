@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarRange } from 'lucide-react';
+import { CalendarRange, Inbox } from 'lucide-react';
 import StatusBadge from '../shared/StatusBadge';
 import { formatDateShort } from '../../utils/dateUtils';
 import {
@@ -36,34 +36,52 @@ const AgencyBookings = ({
     isConfirmedStatus(b.status) && !b.reschedule
   );
 
+  // Global empty state wenn keine Buchungen vorhanden
+  const hasNoBookings = activeBookings.length === 0;
+
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Buchungen</h1>
 
-      {/* Verschiebungsanfragen */}
-      {rescheduleBookings.length > 0 && (
-        <RescheduleSection
-          bookings={rescheduleBookings}
-          onWithdraw={onWithdrawReschedule}
-        />
-      )}
+      {hasNoBookings ? (
+        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-card border border-gray-200 dark:border-gray-700">
+          <Inbox className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" aria-hidden="true" />
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            Noch keine Buchungen
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+            Hier erscheinen deine Buchungsanfragen und bestätigten Buchungen.
+            Starte über die Freelancer-Suche oder ein Projekt.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Verschiebungsanfragen */}
+          {rescheduleBookings.length > 0 && (
+            <RescheduleSection
+              bookings={rescheduleBookings}
+              onWithdraw={onWithdrawReschedule}
+            />
+          )}
 
-      {/* Wartende Anfragen */}
-      {pendingBookings.length > 0 && (
-        <PendingSection
-          bookings={pendingBookings}
-          onWithdraw={onWithdraw}
-          onReschedule={onReschedule}
-        />
-      )}
+          {/* Wartende Anfragen */}
+          {pendingBookings.length > 0 && (
+            <PendingSection
+              bookings={pendingBookings}
+              onWithdraw={onWithdraw}
+              onReschedule={onReschedule}
+            />
+          )}
 
-      {/* Bestätigte Buchungen */}
-      <ConfirmedSection
-        bookings={confirmedBookings}
-        onConvertToFix={onConvertToFix}
-        onReschedule={onReschedule}
-        onCancel={onCancel}
-      />
+          {/* Bestätigte Buchungen */}
+          <ConfirmedSection
+            bookings={confirmedBookings}
+            onConvertToFix={onConvertToFix}
+            onReschedule={onReschedule}
+            onCancel={onCancel}
+          />
+        </>
+      )}
     </div>
   );
 };

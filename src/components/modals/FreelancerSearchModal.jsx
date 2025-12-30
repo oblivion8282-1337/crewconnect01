@@ -8,6 +8,7 @@ import { formatDateShort, getDateRange, parseLocalDate } from '../../utils/dateU
 import { PROFESSIONS } from '../../constants/profileOptions';
 import DateRangePicker from '../shared/DateRangePicker';
 import ResizableModal from '../shared/ResizableModal';
+import FavoriteButton from '../shared/FavoriteButton';
 
 /**
  * FreelancerSearchModal - Umfangreiche Freelancer-Suche als Modal
@@ -19,7 +20,15 @@ const FreelancerSearchModal = ({
   getDayStatus,
   agencyId,
   onBook,
-  onClose
+  onClose,
+  // Favoriten & Crew-Listen Props
+  isFavorite,
+  onToggleFavorite,
+  crewLists = [],
+  getListsForFreelancer,
+  onAddToList,
+  onRemoveFromList,
+  onOpenAddToListModal
 }) => {
   // Prüfe ob Phase Datum hat
   const phaseHasDates = phase.startDate && phase.endDate;
@@ -37,7 +46,6 @@ const FreelancerSearchModal = ({
   });
 
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [favorites, setFavorites] = useState(new Set());
 
   // Custom Date Range (wenn Phase kein Datum hat)
   const [customDateRange, setCustomDateRange] = useState({
@@ -138,7 +146,7 @@ const FreelancerSearchModal = ({
       if (filters.remoteOnly && !freelancer.remoteWork) return false;
 
       // Favoriten Filter
-      if (filters.favoritesOnly && !favorites.has(freelancer.id)) return false;
+      if (filters.favoritesOnly && !isFavorite?.(freelancer.id)) return false;
 
       // 100% Verfügbar Filter
       if (filters.onlyFullyAvailable) {
@@ -148,19 +156,7 @@ const FreelancerSearchModal = ({
 
       return true;
     });
-  }, [freelancers, filters, favorites, dateRange]);
-
-  const toggleFavorite = (freelancerId) => {
-    setFavorites(prev => {
-      const newFavorites = new Set(prev);
-      if (newFavorites.has(freelancerId)) {
-        newFavorites.delete(freelancerId);
-      } else {
-        newFavorites.add(freelancerId);
-      }
-      return newFavorites;
-    });
-  };
+  }, [freelancers, filters, isFavorite, dateRange]);
 
   // Tag anklicken (mit Shift-Support für Mehrfachauswahl)
   const handleDayClick = useCallback((freelancer, dayIndex, day, shiftKey) => {
@@ -518,8 +514,13 @@ const FreelancerSearchModal = ({
                   bookingType={bookingType}
                   includeWeekends={includeWeekends}
                   getDayStatus={getDayStatus}
-                  isFavorite={favorites.has(freelancer.id)}
-                  onToggleFavorite={() => toggleFavorite(freelancer.id)}
+                  isFavorite={isFavorite?.(freelancer.id)}
+                  onToggleFavorite={onToggleFavorite}
+                  crewLists={crewLists}
+                  getListsForFreelancer={getListsForFreelancer}
+                  onAddToList={onAddToList}
+                  onRemoveFromList={onRemoveFromList}
+                  onOpenAddToListModal={onOpenAddToListModal}
                   onDayClick={handleDayClick}
                   onSelectAll={handleSelectAll}
                   onDeselectAll={handleDeselectAll}
@@ -549,6 +550,11 @@ const FreelancerResultCard = ({
   getDayStatus,
   isFavorite,
   onToggleFavorite,
+  crewLists,
+  getListsForFreelancer,
+  onAddToList,
+  onRemoveFromList,
+  onOpenAddToListModal,
   onDayClick,
   onSelectAll,
   onDeselectAll,
@@ -621,14 +627,17 @@ const FreelancerResultCard = ({
                   {freelancer.verified && (
                     <span className="text-blue-500" title="Verifiziert">✓</span>
                   )}
-                  <button
-                    onClick={onToggleFavorite}
-                    className={`p-1 rounded transition-colors ${
-                      isFavorite ? 'text-red-500' : 'text-gray-300 dark:text-gray-600 hover:text-red-400'
-                    }`}
-                  >
-                    <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
-                  </button>
+                  <FavoriteButton
+                    freelancerId={freelancer.id}
+                    isFavorite={isFavorite}
+                    onToggle={onToggleFavorite}
+                    crewLists={crewLists}
+                    getListsForFreelancer={getListsForFreelancer}
+                    onAddToList={onAddToList}
+                    onRemoveFromList={onRemoveFromList}
+                    onOpenAddToListModal={onOpenAddToListModal}
+                    size="md"
+                  />
                 </div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm">{(freelancer.professions || []).join(', ')}</p>
               </div>

@@ -156,3 +156,51 @@ agentur1 ODER freelancer1: Bestätigte Buchung stornieren (mit Grund)
 4. **Sichtbarkeit:**
    - Freelancer sehen ALLE Anfragen an sie
    - Agenturen sehen nur IHRE eigenen Buchungen (andere sind "privat")
+
+---
+
+## Test-Szenarien
+
+### Buchungs-Szenarien (01-30)
+| Nr | Name | Beschreibung |
+|----|------|--------------|
+| 01 | Einfache Buchung | Option-Buchung erstellen und bestätigen |
+| 02 | Option zu Fix | Option in Fix umwandeln |
+| 03 | Konflikt-Buchung | Überlappende Buchungen |
+| 04 | Direkte Fix-Buchung | Fix ohne Option-Schritt |
+| 05 | Verschiebungsanfrage | Agentur verschiebt Buchung |
+| 06 | Stornierung | Buchung stornieren |
+| 07 | Kompletter Workflow | End-to-End Buchungsprozess |
+| 08 | Blockierte Tage | Freelancer blockiert Tage |
+| 09-20 | ... | Weitere Buchungs-Szenarien |
+| 21 | Favoriten & Crew-Listen | Listen-Verwaltung |
+| 22-30 | Freelancer-Suche & Buchung | Buchung über Profil |
+
+### Nachrichten-Szenarien (41-50)
+| Nr | Name | Beschreibung |
+|----|------|--------------|
+| 41 | Chat starten | Agentur startet Chat mit Freelancer |
+| 42 | Chat antworten | Freelancer antwortet auf Nachricht |
+| 43 | Buchung aus Chat | Buchung direkt aus Chat erstellen |
+| 44 | Buchungsreferenz Status | Status-Updates in Chat-Referenz |
+| 45 | Chat aus Crew-Liste | Chat über Meine Crew öffnen |
+| 46 | Freelancer hinzufügen | Modal zum Suchen und Hinzufügen |
+| 47 | Crew-Suche | In eigener Crew suchen |
+| 48 | Buchungsreferenz im Chat | Automatische Referenz bei Buchung |
+| 49 | Chat-Liste verwalten | Mehrere Chats, Unread-Counts |
+| 50 | Nachrichten-Workflow | Kompletter Chat-zu-Buchung Flow |
+
+### Nachrichtentypen
+Das Messaging-System unterstützt zwei Nachrichtentypen:
+- **text** - Normale Textnachrichten
+- **booking_ref** - Automatische Buchungsreferenz mit Status-Tracking
+
+### Szenarien ausführen
+```bash
+# Supervisor starten und Szenario laden
+Task: supervisor
+Prompt: "Führe Szenario 41 aus"
+
+# Einzelnes Szenario lesen
+Read: .claude/agents/scenarios/41-chat-starten.md
+```

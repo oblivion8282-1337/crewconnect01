@@ -6,10 +6,13 @@ import {
   Briefcase,
   CheckCircle,
   User,
+  Users,
+  Search,
   Inbox,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  MessageCircle
 } from 'lucide-react';
 import { USER_ROLES } from '../constants/calendar';
 
@@ -19,6 +22,7 @@ import { USER_ROLES } from '../constants/calendar';
 const FREELANCER_NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'requests', icon: Inbox, label: 'Anfragen', showBadge: true },
+  { id: 'messages', icon: MessageCircle, label: 'Nachrichten', showMessageBadge: true },
   { id: 'projects', icon: Briefcase, label: 'Projekte' },
   { id: 'calendar', icon: Calendar, label: 'Kalender' },
   { id: 'history', icon: Archive, label: 'Historie' },
@@ -32,6 +36,9 @@ const AGENCY_NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'projects', icon: Briefcase, label: 'Projekte' },
   { id: 'bookings', icon: CheckCircle, label: 'Buchungen' },
+  { id: 'messages', icon: MessageCircle, label: 'Nachrichten', showMessageBadge: true },
+  { id: 'freelancer-search', icon: Search, label: 'Freelancer' },
+  { id: 'crew', icon: Users, label: 'Meine Crew' },
   { id: 'history', icon: Archive, label: 'Historie' },
   { id: 'profile', icon: User, label: 'Profil' }
 ];
@@ -44,6 +51,7 @@ const Sidebar = ({
   currentView,
   onViewChange,
   badgeCount = 0,
+  messageBadgeCount = 0,
   isOpen,
   onClose,
   isCollapsed,
@@ -102,8 +110,9 @@ const Sidebar = ({
           <button
             onClick={onClose}
             className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            aria-label="Menü schließen"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-500" aria-hidden="true" />
           </button>
         </div>
 
@@ -113,7 +122,10 @@ const Sidebar = ({
             {navItems.map(item => {
               const Icon = item.icon;
               const showBadge = item.showBadge && badgeCount > 0;
+              const showMessageBadge = item.showMessageBadge && messageBadgeCount > 0;
               const isActive = currentView === item.id;
+              const displayBadgeCount = showBadge ? badgeCount : (showMessageBadge ? messageBadgeCount : 0);
+              const hasBadge = showBadge || showMessageBadge;
 
               return (
                 <button
@@ -124,7 +136,7 @@ const Sidebar = ({
                   }}
                   className={`
                     w-full flex items-center gap-3 rounded-xl
-                    transition-all duration-200
+                    transition-all duration-200 relative
                     ${isCollapsed ? 'justify-center p-3' : 'px-4 py-3'}
                     ${isActive
                       ? 'bg-primary text-primary-foreground'
@@ -137,21 +149,21 @@ const Sidebar = ({
                   {!isCollapsed && (
                     <>
                       <span className="font-medium text-sm">{item.label}</span>
-                      {showBadge && (
+                      {hasBadge && (
                         <span className={`
                           ml-auto px-2 py-0.5 text-xs font-semibold rounded-full
                           ${isActive
                             ? 'bg-gray-900 text-primary'
-                            : 'bg-red-500 text-white'
+                            : showMessageBadge ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'
                           }
                         `}>
-                          {badgeCount}
+                          {displayBadgeCount}
                         </span>
                       )}
                     </>
                   )}
-                  {isCollapsed && showBadge && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                  {isCollapsed && hasBadge && (
+                    <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ${showMessageBadge ? 'bg-blue-500' : 'bg-red-500'}`} />
                   )}
                 </button>
               );
@@ -170,12 +182,13 @@ const Sidebar = ({
               transition-all duration-200
               ${isCollapsed ? 'justify-center' : ''}
             `}
+            aria-label={isCollapsed ? 'Navigation ausklappen' : 'Navigation einklappen'}
           >
             {isCollapsed ? (
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-5 h-5" aria-hidden="true" />
             ) : (
               <>
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5" aria-hidden="true" />
                 <span className="text-sm">Einklappen</span>
               </>
             )}

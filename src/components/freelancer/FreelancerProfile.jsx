@@ -23,6 +23,7 @@ import {
 } from '../../constants/profileOptions';
 import AddressAutocomplete from '../shared/AddressAutocomplete';
 import AccentColorPicker from '../shared/AccentColorPicker';
+import CalendarVisibilitySettings from './CalendarVisibilitySettings';
 
 /**
  * VisibilityToggle - Kleiner Toggle für Sichtbarkeitseinstellungen
@@ -551,6 +552,14 @@ const FreelancerProfile = ({
         <TextField label="Website" value={currentData.website}
           onChange={(v) => handleChange('website', v)} isEditing={isEditing}
           type="url" icon={<Globe className="w-4 h-4 inline" />} />
+      </ProfileSection>
+
+      {/* Kalender-Sichtbarkeit */}
+      <ProfileSection title="Kalender-Sichtbarkeit">
+        <CalendarVisibilitySettings
+          visibility={profile.calendarVisibility}
+          onChange={(visibility) => onUpdate({ calendarVisibility: visibility })}
+        />
       </ProfileSection>
 
       {/* Account-Einstellungen */}

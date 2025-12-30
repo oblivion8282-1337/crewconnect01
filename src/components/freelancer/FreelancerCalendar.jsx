@@ -47,8 +47,9 @@ const FreelancerCalendar = ({
           <button
             onClick={() => navigateMonth(-1)}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            aria-label="Vorheriger Monat"
           >
-            <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />
           </button>
           <h2 className="font-semibold text-gray-900 dark:text-white">
             {MONTH_NAMES[month]} {year}
@@ -56,8 +57,9 @@ const FreelancerCalendar = ({
           <button
             onClick={() => navigateMonth(1)}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            aria-label="Nächster Monat"
           >
-            <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />
           </button>
         </div>
 

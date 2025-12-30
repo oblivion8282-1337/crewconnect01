@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { formatDate, createDateKey, getDaysInMonth, getFirstDayOfMonth } from '../../utils/dateUtils';
 import { MONTH_NAMES, WEEKDAY_NAMES } from '../../constants/calendar';
 import ResizableModal from '../shared/ResizableModal';
@@ -16,6 +16,7 @@ const RescheduleBookingModal = ({
 }) => {
   const [selectedDates, setSelectedDates] = useState([]);
   const [calendarMonth, setCalendarMonth] = useState(new Date(2025, 0, 1));
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!booking) return null;
 
@@ -70,9 +71,16 @@ const RescheduleBookingModal = ({
   const canSubmit = selectedDates.length > 0 &&
     JSON.stringify(selectedDates) !== JSON.stringify(booking.dates);
 
-  const handleSubmit = () => {
-    onReschedule(booking, selectedDates);
-    onClose();
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      onReschedule(booking, selectedDates);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {
@@ -134,8 +142,9 @@ const RescheduleBookingModal = ({
             <button
               onClick={goToPreviousMonth}
               className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              aria-label="Vorheriger Monat"
             >
-              <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />
             </button>
             <span className="font-medium text-sm text-gray-900 dark:text-white">
               {MONTH_NAMES[month]} {year}
@@ -143,8 +152,9 @@ const RescheduleBookingModal = ({
             <button
               onClick={goToNextMonth}
               className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              aria-label="Nächster Monat"
             >
-              <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />
             </button>
           </div>
 
@@ -218,16 +228,23 @@ const RescheduleBookingModal = ({
         </button>
         <button
           onClick={handleSubmit}
-          disabled={!canSubmit}
+          disabled={!canSubmit || isSubmitting}
           className={`
-            flex-1 py-2.5 rounded-xl font-medium transition-colors
-            ${canSubmit
+            flex-1 py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2
+            ${canSubmit && !isSubmitting
               ? 'bg-primary text-primary-foreground hover:opacity-90'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
+              : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
             }
           `}
         >
-          Verschiebung anfragen
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Wird gesendet...
+            </>
+          ) : (
+            'Verschiebung anfragen'
+          )}
         </button>
       </div>
     </ResizableModal>

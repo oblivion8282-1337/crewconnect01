@@ -26,6 +26,8 @@ export const useBookings = (freelancerId, agencyId) => {
   const [blockedDays, setBlockedDays] = useState({});
   // openForMore ist jetzt am Tag, nicht an der Buchung
   const [openForMoreDays, setOpenForMoreDays] = useState({});
+  // Track welche Buchung gerade verarbeitet wird (verhindert Doppelklicks)
+  const [processingBookingId, setProcessingBookingId] = useState(null);
 
   // Lade Profildaten für den aktuellen Benutzer
   const currentFreelancer = getFreelancerById(freelancerId);
@@ -300,12 +302,62 @@ export const useBookings = (freelancerId, agencyId) => {
   /**
    * Erstellt eine neue Buchungsanfrage
    * @param {string} requestType - 'option' oder 'fix'
+   * @returns {Object} { success: boolean, error?: string, booking?: Object }
    */
   const createBooking = useCallback((freelancer, dates, requestType, project, phase, rateInfo = {}) => {
+    // === VALIDIERUNG ===
+
+    // Pflichtfelder prüfen
+    if (!freelancer?.id) {
+      console.error('createBooking: Freelancer erforderlich');
+      return { success: false, error: 'Freelancer erforderlich' };
+    }
+
+    if (!project?.id) {
+      console.error('createBooking: Projekt erforderlich');
+      return { success: false, error: 'Projekt erforderlich' };
+    }
+
+    if (!phase?.id) {
+      console.error('createBooking: Phase erforderlich');
+      return { success: false, error: 'Phase erforderlich' };
+    }
+
+    // Dates validieren
+    if (!dates || !Array.isArray(dates) || dates.length === 0) {
+      console.error('createBooking: Mindestens 1 Tag erforderlich');
+      return { success: false, error: 'Mindestens 1 Tag erforderlich' };
+    }
+
+    // Duplikate entfernen
+    const uniqueDates = [...new Set(dates)];
+
+    // Datumsformat validieren (YYYY-MM-DD)
+    const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const invalidDates = uniqueDates.filter(d => !dateFormatRegex.test(d));
+    if (invalidDates.length > 0) {
+      console.error('createBooking: Ungültiges Datumsformat', invalidDates);
+      return { success: false, error: `Ungültiges Datumsformat: ${invalidDates.join(', ')}` };
+    }
+
+    // Vergangenheit prüfen - blockiert Buchungen in der Vergangenheit
+    const today = new Date().toISOString().split('T')[0];
+    const pastDates = uniqueDates.filter(d => d < today);
+    if (pastDates.length > 0) {
+      console.error('createBooking: Buchung enthält Vergangenheitsdaten', pastDates);
+      return { success: false, error: 'Buchungen in der Vergangenheit sind nicht möglich' };
+    }
+
+    // RequestType validieren
+    if (!['option', 'fix'].includes(requestType)) {
+      console.error('createBooking: requestType muss "option" oder "fix" sein');
+      return { success: false, error: 'Ungültiger Buchungstyp' };
+    }
+
     const rateType = rateInfo.rateType || 'daily';
-    const dayRate = rateInfo.dayRate || freelancer.dayRate || 0;
-    const flatRate = rateInfo.flatRate || 0;
-    const totalCost = rateInfo.totalCost || (rateType === 'daily' ? dayRate * dates.length : flatRate);
+    const dayRate = Math.max(0, rateInfo.dayRate || freelancer.dayRate || 0);
+    const flatRate = Math.max(0, rateInfo.flatRate || 0);
+    const totalCost = rateInfo.totalCost || (rateType === 'daily' ? dayRate * uniqueDates.length : flatRate);
 
     // Neuer Status basierend auf requestType
     const status = requestType === 'fix'
@@ -324,7 +376,7 @@ export const useBookings = (freelancerId, agencyId) => {
       phaseName: phase.name,
       freelancerId: freelancer.id,
       freelancerName: `${freelancer.firstName || ''} ${freelancer.lastName || ''}`.trim(),
-      dates,
+      dates: uniqueDates,
       rateType,
       dayRate,
       flatRate,
@@ -342,170 +394,278 @@ export const useBookings = (freelancerId, agencyId) => {
       'freelancer',
       'new_request',
       notificationTitle,
-      `${agencyName}: "${project.name}" (${dates.length} Tage)`,
+      `${agencyName}: "${project.name}" (${uniqueDates.length} Tage)`,
       newBooking.id
     );
+
+    return { success: true, booking: newBooking };
   }, [addNotification, agencyId, agencyName, agencyAvatar]);
 
   /**
+   * Prüft ob eine Buchung gerade verarbeitet wird
+   */
+  const isBookingProcessing = useCallback((bookingId) => {
+    return processingBookingId === bookingId;
+  }, [processingBookingId]);
+
+  /**
    * Freelancer bestätigt eine Anfrage
+   * @returns {Object} { success: boolean, error?: string }
    */
   const acceptBooking = useCallback((booking) => {
-    // Bestimme neuen Status basierend auf aktuellem Status
-    let newStatus;
-    if (booking.status === BOOKING_STATUS.OPTION_PENDING) {
-      newStatus = BOOKING_STATUS.OPTION_CONFIRMED;
-    } else if (booking.status === BOOKING_STATUS.FIX_PENDING) {
-      newStatus = BOOKING_STATUS.FIX_CONFIRMED;
-    } else {
-      // Bereits bestätigt oder ungültiger Status
-      return;
+    // Verhindere Doppelklicks
+    if (processingBookingId === booking.id) {
+      return { success: false, error: 'Buchung wird bereits verarbeitet' };
     }
+    setProcessingBookingId(booking.id);
 
-    setBookings(prev => prev.map(b =>
-      b.id === booking.id
-        ? { ...b, status: newStatus, confirmedAt: new Date().toISOString() }
-        : b
-    ));
+    try {
+      // Prüfe ob Buchung noch existiert und im erwarteten Status ist
+      const currentBooking = bookings.find(b => b.id === booking.id);
+      if (!currentBooking) {
+        console.warn('acceptBooking: Buchung nicht gefunden');
+        return { success: false, error: 'Buchung nicht gefunden' };
+      }
 
-    const notificationTitle = newStatus === BOOKING_STATUS.FIX_CONFIRMED
-      ? 'Fixbuchung bestätigt ✓'
-      : 'Option bestätigt ✓';
+      // Bestimme neuen Status basierend auf aktuellem Status
+      let newStatus;
+      if (currentBooking.status === BOOKING_STATUS.OPTION_PENDING) {
+        newStatus = BOOKING_STATUS.OPTION_CONFIRMED;
+      } else if (currentBooking.status === BOOKING_STATUS.FIX_PENDING) {
+        newStatus = BOOKING_STATUS.FIX_CONFIRMED;
+      } else {
+        // Bereits bestätigt oder ungültiger Status
+        console.warn('acceptBooking: Buchung bereits bearbeitet', currentBooking.status);
+        return { success: false, error: 'Buchung bereits bearbeitet' };
+      }
 
-    addNotification(
-      'agency',
-      'confirmed',
-      notificationTitle,
-      `${freelancerName} hat "${booking.projectName}" bestätigt`,
-      booking.id
-    );
-  }, [addNotification, freelancerName]);
+      setBookings(prev => prev.map(b =>
+        b.id === booking.id
+          ? { ...b, status: newStatus, confirmedAt: new Date().toISOString() }
+          : b
+      ));
+
+      const notificationTitle = newStatus === BOOKING_STATUS.FIX_CONFIRMED
+        ? 'Fixbuchung bestätigt ✓'
+        : 'Option bestätigt ✓';
+
+      addNotification(
+        'agency',
+        'confirmed',
+        notificationTitle,
+        `${freelancerName} hat "${booking.projectName}" bestätigt`,
+        booking.id
+      );
+
+      return { success: true, newStatus };
+    } finally {
+      setProcessingBookingId(null);
+    }
+  }, [addNotification, freelancerName, bookings, processingBookingId]);
 
   /**
    * Freelancer lehnt eine Anfrage ab
+   * @returns {Object} { success: boolean, error?: string }
    */
   const declineBooking = useCallback((booking) => {
-    setBookings(prev => prev.map(b =>
-      b.id === booking.id ? { ...b, status: BOOKING_STATUS.DECLINED } : b
-    ));
+    // Verhindere Doppelklicks
+    if (processingBookingId === booking.id) {
+      return { success: false, error: 'Buchung wird bereits verarbeitet' };
+    }
+    setProcessingBookingId(booking.id);
 
-    addNotification(
-      'agency',
-      'declined',
-      'Anfrage abgelehnt',
-      `${freelancerName} hat "${booking.projectName}" abgelehnt`,
-      booking.id
-    );
-  }, [addNotification, freelancerName]);
+    try {
+      // Prüfe ob Buchung noch pending ist
+      const currentBooking = bookings.find(b => b.id === booking.id);
+      if (!currentBooking) {
+        return { success: false, error: 'Buchung nicht gefunden' };
+      }
+      if (!isPendingStatus(currentBooking.status)) {
+        console.warn('declineBooking: Buchung ist nicht mehr pending');
+        return { success: false, error: 'Buchung bereits bearbeitet' };
+      }
+
+      setBookings(prev => prev.map(b =>
+        b.id === booking.id ? { ...b, status: BOOKING_STATUS.DECLINED } : b
+      ));
+
+      addNotification(
+        'agency',
+        'declined',
+        'Anfrage abgelehnt',
+        `${freelancerName} hat "${booking.projectName}" abgelehnt`,
+        booking.id
+      );
+
+      return { success: true };
+    } finally {
+      setProcessingBookingId(null);
+    }
+  }, [addNotification, freelancerName, bookings, processingBookingId]);
 
   /**
    * Agentur zieht Anfrage zurück (nur bei pending)
+   * @returns {Object} { success: boolean, error?: string }
    */
   const withdrawBooking = useCallback((booking) => {
-    if (!isPendingStatus(booking.status)) {
-      console.warn('Nur pending Anfragen können zurückgezogen werden');
-      return;
+    // Verhindere Doppelklicks
+    if (processingBookingId === booking.id) {
+      return { success: false, error: 'Buchung wird bereits verarbeitet' };
     }
+    setProcessingBookingId(booking.id);
 
-    setBookings(prev => prev.map(b =>
-      b.id === booking.id ? { ...b, status: BOOKING_STATUS.WITHDRAWN } : b
-    ));
+    try {
+      const currentBooking = bookings.find(b => b.id === booking.id);
+      if (!currentBooking) {
+        return { success: false, error: 'Buchung nicht gefunden' };
+      }
+      if (!isPendingStatus(currentBooking.status)) {
+        console.warn('Nur pending Anfragen können zurückgezogen werden');
+        return { success: false, error: 'Nur pending Anfragen können zurückgezogen werden' };
+      }
 
-    addNotification(
-      'freelancer',
-      'withdrawn',
-      'Anfrage zurückgezogen',
-      `${booking.agencyName} hat "${booking.projectName}" zurückgezogen`,
-      booking.id
-    );
-  }, [addNotification]);
+      setBookings(prev => prev.map(b =>
+        b.id === booking.id ? { ...b, status: BOOKING_STATUS.WITHDRAWN } : b
+      ));
+
+      addNotification(
+        'freelancer',
+        'withdrawn',
+        'Anfrage zurückgezogen',
+        `${booking.agencyName} hat "${booking.projectName}" zurückgezogen`,
+        booking.id
+      );
+
+      return { success: true };
+    } finally {
+      setProcessingBookingId(null);
+    }
+  }, [addNotification, bookings, processingBookingId]);
 
   /**
    * Storniert eine bestätigte Buchung (von beiden Seiten möglich)
+   * @returns {Object} { success: boolean, error?: string }
    */
   const cancelBooking = useCallback((booking, reason, cancelledByRole) => {
-    if (!isConfirmedStatus(booking.status)) {
-      console.warn('Nur bestätigte Buchungen können storniert werden');
-      return;
+    // Verhindere Doppelklicks
+    if (processingBookingId === booking.id) {
+      return { success: false, error: 'Buchung wird bereits verarbeitet' };
     }
+    setProcessingBookingId(booking.id);
 
-    const otherRole = cancelledByRole === 'freelancer' ? 'agency' : 'freelancer';
-    const cancellerName = cancelledByRole === 'freelancer' ? freelancerName : booking.agencyName;
+    try {
+      const currentBooking = bookings.find(b => b.id === booking.id);
+      if (!currentBooking) {
+        return { success: false, error: 'Buchung nicht gefunden' };
+      }
+      if (!isConfirmedStatus(currentBooking.status)) {
+        console.warn('Nur bestätigte Buchungen können storniert werden');
+        return { success: false, error: 'Nur bestätigte Buchungen können storniert werden' };
+      }
+      if (isTerminalStatus(currentBooking.status)) {
+        console.warn('Buchung wurde bereits beendet');
+        return { success: false, error: 'Buchung bereits beendet' };
+      }
 
-    setBookings(prev => prev.map(b =>
-      b.id === booking.id
-        ? {
-          ...b,
-          status: BOOKING_STATUS.CANCELLED,
-          cancelledAt: new Date().toISOString(),
-          cancelledBy: cancelledByRole,
-          cancelReason: reason.trim()
-        }
-        : b
-    ));
+      const otherRole = cancelledByRole === 'freelancer' ? 'agency' : 'freelancer';
+      const cancellerName = cancelledByRole === 'freelancer' ? freelancerName : booking.agencyName;
 
-    addNotification(
-      otherRole,
-      'cancelled',
-      'Buchung storniert ⚠️',
-      `${cancellerName} hat "${booking.projectName}" storniert: ${reason}`,
-      booking.id
-    );
-  }, [addNotification, freelancerName]);
+      setBookings(prev => prev.map(b =>
+        b.id === booking.id
+          ? {
+            ...b,
+            status: BOOKING_STATUS.CANCELLED,
+            cancelledAt: new Date().toISOString(),
+            cancelledBy: cancelledByRole,
+            cancelReason: reason.trim()
+          }
+          : b
+      ));
+
+      addNotification(
+        otherRole,
+        'cancelled',
+        'Buchung storniert ⚠️',
+        `${cancellerName} hat "${booking.projectName}" storniert: ${reason}`,
+        booking.id
+      );
+
+      return { success: true };
+    } finally {
+      setProcessingBookingId(null);
+    }
+  }, [addNotification, freelancerName, bookings, processingBookingId]);
 
   /**
    * Wandelt bestätigte Option in Fixbuchung um
    * KEINE erneute Bestätigung nötig!
+   * @returns {Object} { success: boolean, error?: string }
    */
   const convertOptionToFix = useCallback((booking) => {
-    if (booking.status !== BOOKING_STATUS.OPTION_CONFIRMED) {
-      console.warn('Nur bestätigte Optionen können zu Fix umgewandelt werden');
-      return;
+    // Verhindere Doppelklicks
+    if (processingBookingId === booking.id) {
+      return { success: false, error: 'Buchung wird bereits verarbeitet' };
     }
+    setProcessingBookingId(booking.id);
 
-    // Direkt zu fix_confirmed - keine erneute Bestätigung!
-    setBookings(prev => prev.map(b =>
-      b.id === booking.id
-        ? { ...b, status: BOOKING_STATUS.FIX_CONFIRMED, fixedAt: new Date().toISOString() }
-        : b
-    ));
+    try {
+      const currentBooking = bookings.find(b => b.id === booking.id);
+      if (!currentBooking) {
+        return { success: false, error: 'Buchung nicht gefunden' };
+      }
+      if (currentBooking.status !== BOOKING_STATUS.OPTION_CONFIRMED) {
+        console.warn('Nur bestätigte Optionen können zu Fix umgewandelt werden');
+        return { success: false, error: 'Nur bestätigte Optionen können zu Fix umgewandelt werden' };
+      }
 
-    // Benachrichtigung an Freelancer
-    addNotification(
-      'freelancer',
-      'option_to_fix',
-      'Option wurde gefixt ✓',
-      `${booking.agencyName} hat "${booking.projectName}" fix gebucht`,
-      booking.id
-    );
+      // Direkt zu fix_confirmed - keine erneute Bestätigung!
+      setBookings(prev => prev.map(b =>
+        b.id === booking.id
+          ? { ...b, status: BOOKING_STATUS.FIX_CONFIRMED, fixedAt: new Date().toISOString() }
+          : b
+      ));
 
-    // Benachrichtigung an Agentur
-    addNotification(
-      'agency',
-      'confirmed',
-      'Fixbuchung aktiv ✓',
-      `"${booking.projectName}" ist jetzt fix gebucht`,
-      booking.id
-    );
+      // Benachrichtigung an Freelancer
+      addNotification(
+        'freelancer',
+        'option_to_fix',
+        'Option wurde gefixt ✓',
+        `${booking.agencyName} hat "${booking.projectName}" fix gebucht`,
+        booking.id
+      );
 
-    // Benachrichtige andere Agenturen mit überlappenden Optionen
-    const overlappingOptions = bookings.filter(b =>
-      b.id !== booking.id &&
-      b.freelancerId === booking.freelancerId &&
-      b.status === BOOKING_STATUS.OPTION_CONFIRMED &&
-      b.dates.some(d => booking.dates.includes(d))
-    );
-
-    overlappingOptions.forEach(o => {
+      // Benachrichtigung an Agentur
       addNotification(
         'agency',
-        'option_overtaken',
-        'Option überholt ⚠️',
-        `Deine Option für "${o.projectName}" wurde von einer Fix-Buchung überholt`,
-        o.id
+        'confirmed',
+        'Fixbuchung aktiv ✓',
+        `"${booking.projectName}" ist jetzt fix gebucht`,
+        booking.id
       );
-    });
-  }, [addNotification, bookings]);
+
+      // Benachrichtige andere Agenturen mit überlappenden Optionen
+      const overlappingOptions = bookings.filter(b =>
+        b.id !== booking.id &&
+        b.freelancerId === booking.freelancerId &&
+        b.status === BOOKING_STATUS.OPTION_CONFIRMED &&
+        b.dates.some(d => booking.dates.includes(d))
+      );
+
+      overlappingOptions.forEach(o => {
+        addNotification(
+          'agency',
+          'option_overtaken',
+          'Option überholt ⚠️',
+          `Deine Option für "${o.projectName}" wurde von einer Fix-Buchung überholt`,
+          o.id
+        );
+      });
+
+      return { success: true };
+    } finally {
+      setProcessingBookingId(null);
+    }
+  }, [addNotification, bookings, processingBookingId]);
 
   /**
    * Lehnt alle überlappenden Anfragen ab (Convenience-Funktion)
@@ -532,7 +692,29 @@ export const useBookings = (freelancerId, agencyId) => {
 
   // === Verschiebungs-Handler ===
 
+  /**
+   * Anfrage zur Verschiebung einer Buchung
+   * @returns {Object} { success: boolean, conflicts?: Array, hasConflicts: boolean }
+   */
   const requestReschedule = useCallback((booking, newDates) => {
+    // Validierung
+    if (!newDates || newDates.length === 0) {
+      console.error('requestReschedule: Neue Daten erforderlich');
+      return { success: false, error: 'Neue Daten erforderlich' };
+    }
+
+    // Konflikt-Prüfung: Finde überlappende Buchungen für die neuen Tage
+    const conflicts = bookings.filter(b =>
+      b.freelancerId === booking.freelancerId &&
+      b.id !== booking.id &&
+      !isTerminalStatus(b.status) &&
+      b.dates.some(d => newDates.includes(d))
+    );
+
+    // Prüfe auch auf Fix-Buchungen (die sind blockierend)
+    const fixConflicts = conflicts.filter(b => b.status === BOOKING_STATUS.FIX_CONFIRMED);
+    const hasBlockingConflicts = fixConflicts.length > 0;
+
     setBookings(prev => prev.map(b => {
       if (b.id !== booking.id) return b;
 
@@ -546,19 +728,47 @@ export const useBookings = (freelancerId, agencyId) => {
           newDates,
           originalDates: b.dates,
           requestedAt: new Date().toISOString(),
-          newTotalCost
+          newTotalCost,
+          // Konflikt-Info für UI
+          conflicts: conflicts.map(c => ({
+            id: c.id,
+            projectName: c.projectName,
+            agencyName: c.agencyName,
+            status: c.status,
+            overlappingDates: c.dates.filter(d => newDates.includes(d))
+          })),
+          hasConflicts: conflicts.length > 0,
+          hasBlockingConflicts
         }
       };
     }));
 
+    // Notification mit Konflikt-Warnung wenn nötig
+    const conflictWarning = hasBlockingConflicts
+      ? ' ⚠️ ACHTUNG: Konflikt mit Fix-Buchung!'
+      : conflicts.length > 0
+        ? ' ⚠️ Hinweis: Überschneidung mit anderen Buchungen'
+        : '';
+
     addNotification(
       'freelancer',
       'reschedule_request',
-      'Verschiebungsanfrage 📅',
-      `${booking.agencyName} möchte "${booking.projectName}" verschieben: ${newDates.length} Tage`,
+      `Verschiebungsanfrage 📅${hasBlockingConflicts ? ' ⚠️' : ''}`,
+      `${booking.agencyName} möchte "${booking.projectName}" verschieben: ${newDates.length} Tage${conflictWarning}`,
       booking.id
     );
-  }, [addNotification]);
+
+    return {
+      success: true,
+      hasConflicts: conflicts.length > 0,
+      hasBlockingConflicts,
+      conflicts: conflicts.map(c => ({
+        id: c.id,
+        projectName: c.projectName,
+        status: c.status
+      }))
+    };
+  }, [addNotification, bookings]);
 
   const acceptReschedule = useCallback((booking) => {
     setBookings(prev => prev.map(b =>
@@ -718,6 +928,7 @@ export const useBookings = (freelancerId, agencyId) => {
     convertOptionToFix,
     createBooking,
     declineOverlappingBookings,
+    isBookingProcessing,
 
     // Verschiebungs-Handler
     requestReschedule,

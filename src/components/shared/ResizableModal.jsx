@@ -188,8 +188,18 @@ const ResizableModal = ({
     return cursors[direction] || 'default';
   };
 
+  // Handle overlay click
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 dark:bg-black/80 z-50 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 bg-black/50 dark:bg-black/70 z-50"
+      onClick={handleOverlayClick}
+    >
       <div
         ref={modalRef}
         className="absolute bg-white dark:bg-gray-800 rounded-card shadow-2xl flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700"
@@ -217,7 +227,7 @@ const ResizableModal = ({
               <GripHorizontal className="w-4 h-4 text-gray-300 dark:text-gray-600" />
             )}
             <div>
-              <h2 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
               {subtitle && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
               )}
@@ -228,19 +238,21 @@ const ResizableModal = ({
               onClick={toggleMaximize}
               className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title={isMaximized ? 'Wiederherstellen' : 'Maximieren'}
+              aria-label={isMaximized ? 'Wiederherstellen' : 'Maximieren'}
             >
               {isMaximized ? (
-                <Minimize2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <Minimize2 className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" />
               ) : (
-                <Maximize2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <Maximize2 className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" />
               )}
             </button>
             <button
               onClick={onClose}
               className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Schließen"
+              aria-label="Schließen"
             >
-              <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              <X className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" />
             </button>
           </div>
         </div>

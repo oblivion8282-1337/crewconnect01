@@ -54,7 +54,15 @@ const ProjectDetail = ({
   onAddPhase,
   onUpdatePhase,
   onDeletePhase,
-  onSelectPhase
+  onSelectPhase,
+  // Favoriten & Crew-Listen Props
+  isFavorite,
+  onToggleFavorite,
+  crewLists,
+  getListsForFreelancer,
+  onAddToList,
+  onRemoveFromList,
+  onOpenAddToListModal
 }) => {
   const [searchContext, setSearchContext] = useState(null);
   const [showAddPhase, setShowAddPhase] = useState(false);
@@ -325,34 +333,79 @@ const ProjectDetail = ({
 
       {/* Phasen */}
       <div className="bg-white dark:bg-gray-800 rounded-card border border-gray-200 dark:border-gray-700 p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Phasen</h2>
-        </div>
-
         {project.phases?.length === 0 ? (
-          <p className="text-gray-400 text-center py-8">Keine Phasen vorhanden</p>
-        ) : (
-          <div className="space-y-3">
-            {project.phases?.map(phase => (
-              <PhaseCard
-                key={phase.id}
-                phase={phase}
-                projectId={project.id}
-                bookings={projectBookings.filter(b => b.phaseId === phase.id)}
-                onDeletePhase={onDeletePhase}
-                onSelectPhase={onSelectPhase}
-              />
-            ))}
-          </div>
-        )}
+          /* Empty State - Prominent mit Erklärung */
+          <div className="text-center py-10">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Calendar className="w-8 h-8 text-primary" />
+            </div>
 
-        <button
-          onClick={() => setShowAddPhase(true)}
-          className="w-full mt-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Phase hinzufügen
-        </button>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+              Projekt in Phasen aufteilen
+            </h2>
+
+            <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-6 leading-relaxed">
+              <strong>Phasen</strong> sind die verschiedenen Abschnitte deines Projekts.
+              Für jede Phase kannst du separat Freelancer suchen und buchen.
+            </p>
+
+            {/* Beispiele */}
+            <div className="flex flex-wrap justify-center gap-2 mb-8">
+              <span className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-full text-sm font-medium">
+                Drehphase
+              </span>
+              <span className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-full text-sm font-medium">
+                Post-Production
+              </span>
+              <span className="px-3 py-1.5 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 rounded-full text-sm font-medium">
+                Pre-Production
+              </span>
+              <span className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-full text-sm font-medium">
+                Sounddesign
+              </span>
+            </div>
+
+            <button
+              onClick={() => setShowAddPhase(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-primary/25"
+            >
+              <Plus className="w-5 h-5" />
+              Erste Phase erstellen
+            </button>
+
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
+              Du kannst später jederzeit weitere Phasen hinzufügen
+            </p>
+          </div>
+        ) : (
+          /* Normale Ansicht mit Phasen */
+          <>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Phasen</h2>
+            </div>
+
+            <div className="space-y-3">
+              {project.phases?.map(phase => (
+                <PhaseCard
+                  key={phase.id}
+                  phase={phase}
+                  projectId={project.id}
+                  bookings={projectBookings.filter(b => b.phaseId === phase.id)}
+                  onDeletePhase={onDeletePhase}
+                  onSelectPhase={onSelectPhase}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowAddPhase(true)}
+              className="w-full mt-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Phase hinzufügen
+            </button>
+          </>
+        )}
       </div>
 
       {/* Team */}
@@ -387,6 +440,13 @@ const ProjectDetail = ({
           agencyId={agencyId}
           onBook={onBook}
           onClose={() => setSearchContext(null)}
+          isFavorite={isFavorite}
+          onToggleFavorite={onToggleFavorite}
+          crewLists={crewLists}
+          getListsForFreelancer={getListsForFreelancer}
+          onAddToList={onAddToList}
+          onRemoveFromList={onRemoveFromList}
+          onOpenAddToListModal={onOpenAddToListModal}
         />
       )}
 
