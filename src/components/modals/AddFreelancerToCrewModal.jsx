@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { X, Search, Heart, UserPlus, Check, MessageSquare } from 'lucide-react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
+import { X, Search, Heart, UserPlus, MessageSquare, GripHorizontal } from 'lucide-react';
 import { CREW_LIST_COLORS } from '../../hooks/useProfile';
+import { ProfileAvatar } from '../shared/ProfileField';
 
 /**
  * AddFreelancerToCrewModal - Modal zum Suchen und Hinzufügen von Freelancern zur Crew
@@ -15,16 +16,60 @@ const AddFreelancerToCrewModal = ({
   isOpen,
   onClose,
   freelancers,
-  favorites,
-  crewLists,
   onToggleFavorite,
   onAddToList,
   onOpenChat,
   isFavorite,
-  getListsForFreelancer
+  getListsForFreelancer,
+  initialListId = null
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedListId, setSelectedListId] = useState(null);
+
+  // Drag state
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef(null);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+
+  // Reset when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setSearchQuery('');
+      setPosition({ x: 0, y: 0 });
+    }
+  }, [isOpen]);
+
+  // Drag handlers
+  const handleMouseDown = useCallback((e) => {
+    setIsDragging(true);
+    dragStartPos.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    };
+  }, [position]);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragStartPos.current.x,
+      y: e.clientY - dragStartPos.current.y
+    });
+  }, [isDragging]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  React.useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // Gefilterte Freelancer basierend auf Suche
   const filteredFreelancers = useMemo(() => {
@@ -33,7 +78,7 @@ const AddFreelancerToCrewModal = ({
     return freelancers.filter(f => {
       const fullName = `${f.firstName || ''} ${f.lastName || ''}`.toLowerCase();
       const professions = (f.professions || []).join(' ').toLowerCase();
-      const city = (f.city || '').toLowerCase();
+      const city = (f.address?.city || '').toLowerCase();
       return fullName.includes(query) || professions.includes(query) || city.includes(query);
     }).slice(0, 10); // Limit to 10 results
   }, [freelancers, searchQuery]);
@@ -47,8 +92,8 @@ const AddFreelancerToCrewModal = ({
   };
 
   const handleAddToList = (freelancerId) => {
-    if (selectedListId && onAddToList) {
-      onAddToList(selectedListId, freelancerId);
+    if (initialListId && onAddToList) {
+      onAddToList(initialListId, freelancerId);
     }
   };
 
@@ -61,16 +106,18 @@ const AddFreelancerToCrewModal = ({
 
   const FreelancerRow = ({ freelancer }) => {
     const fullName = `${freelancer.firstName || ''} ${freelancer.lastName || ''}`.trim() || 'Unbekannt';
-    const initials = `${(freelancer.firstName || '?')[0]}${(freelancer.lastName || '?')[0]}`;
     const isInFavorites = isFavorite(freelancer.id);
     const freelancerLists = getListsForFreelancer(freelancer.id);
 
     return (
       <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
         {/* Avatar */}
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent/20 to-accent/40 flex items-center justify-center text-sm font-medium text-gray-700 dark:text-gray-200">
-          {initials}
-        </div>
+        <ProfileAvatar
+          imageUrl={freelancer.profileImage}
+          firstName={freelancer.firstName}
+          lastName={freelancer.lastName}
+          size="sm"
+        />
 
         {/* Info */}
         <div className="flex-1 min-w-0">
@@ -78,7 +125,7 @@ const AddFreelancerToCrewModal = ({
             {fullName}
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
-            {freelancer.professions?.join(', ') || 'Keine Berufe'} • {freelancer.city || 'Ort unbekannt'}
+            {freelancer.professions?.join(', ') || 'Keine Berufe'}{freelancer.address?.city ? ` • ${freelancer.address.city}` : ''}
           </div>
           {/* Liste-Tags */}
           {freelancerLists.length > 0 && (
@@ -100,40 +147,43 @@ const AddFreelancerToCrewModal = ({
 
         {/* Actions */}
         <div className="flex items-center gap-1">
-          {/* Favoriten-Toggle */}
-          <button
-            onClick={() => onToggleFavorite(freelancer.id)}
-            className={`p-1.5 rounded-lg transition-colors ${
-              isInFavorites
-                ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
-                : 'text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}
-            title={isInFavorites ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-            aria-label={isInFavorites ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-          >
-            <Heart className="w-4 h-4" fill={isInFavorites ? 'currentColor' : 'none'} aria-hidden="true" />
-          </button>
+          {/* Favoriten-Toggle - nur wenn von Favoriten geöffnet (kein initialListId) */}
+          {!initialListId && (
+            <button
+              onClick={() => onToggleFavorite(freelancer.id)}
+              className={`p-1.5 rounded-lg transition-colors ${
+                isInFavorites
+                  ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+                  : 'text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+              }`}
+              title={isInFavorites ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+            >
+              <Heart className="w-4 h-4" fill={isInFavorites ? 'currentColor' : 'none'} />
+            </button>
+          )}
 
-          {/* Zu Liste hinzufügen */}
-          {selectedListId && (
+          {/* Zu Liste hinzufügen - nur wenn von einer Liste geöffnet */}
+          {initialListId && (
             <button
               onClick={() => handleAddToList(freelancer.id)}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
-              title="Zur ausgewählten Liste hinzufügen"
-              aria-label="Zur ausgewählten Liste hinzufügen"
+              className={`p-1.5 rounded-lg transition-colors ${
+                freelancerLists.some(l => l.id === initialListId)
+                  ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
+                  : 'text-green-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
+              }`}
+              title="Zur Liste hinzufügen"
             >
-              <UserPlus className="w-4 h-4" aria-hidden="true" />
+              <UserPlus className="w-4 h-4" />
             </button>
           )}
 
           {/* Chat */}
           <button
             onClick={() => handleOpenChat(freelancer.id)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+            className="p-1.5 rounded-lg text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
             title="Chat öffnen"
-            aria-label="Chat öffnen"
           >
-            <MessageSquare className="w-4 h-4" aria-hidden="true" />
+            <MessageSquare className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -145,14 +195,28 @@ const AddFreelancerToCrewModal = ({
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Freelancer zur Crew hinzufügen
-          </h2>
+      <div
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+        }}
+      >
+        {/* Header - Draggable */}
+        <div
+          className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 cursor-move select-none"
+          onMouseDown={handleMouseDown}
+          ref={dragRef}
+        >
+          <div className="flex items-center gap-2">
+            <GripHorizontal className="w-4 h-4 text-gray-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Crew hinzufügen
+            </h2>
+          </div>
           <button
             onClick={onClose}
+            onMouseDown={(e) => e.stopPropagation()}
             className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
             aria-label="Schließen"
           >
@@ -174,46 +238,6 @@ const AddFreelancerToCrewModal = ({
               autoFocus
             />
           </div>
-
-          {/* Liste auswählen (optional) */}
-          {crewLists.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Direkt zu Liste hinzufügen:
-              </label>
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => setSelectedListId(null)}
-                  className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                    selectedListId === null
-                      ? 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  Nur Favoriten
-                </button>
-                {crewLists.map(list => {
-                  const color = CREW_LIST_COLORS.find(c => c.id === list.color) || CREW_LIST_COLORS[0];
-                  const isSelected = selectedListId === list.id;
-                  return (
-                    <button
-                      key={list.id}
-                      onClick={() => setSelectedListId(list.id)}
-                      className={`px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-1.5 ${
-                        isSelected
-                          ? `${color.bg} ${color.text}`
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      <span className={`w-2 h-2 rounded-full ${color.bg}`} />
-                      {list.name}
-                      {isSelected && <Check className="w-3 h-3" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {/* Results */}
           <div className="flex-1 overflow-y-auto">

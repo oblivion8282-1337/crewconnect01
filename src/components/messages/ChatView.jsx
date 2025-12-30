@@ -4,6 +4,7 @@ import MessageBubble from './MessageBubble';
 import BookingRefMessage from './BookingRefMessage';
 import ChatInput from './ChatInput';
 import { MESSAGE_TYPES } from '../../hooks/useMessages';
+import { ProfileAvatar } from '../shared/ProfileField';
 
 /**
  * ChatView - Einzelner Chat-Thread
@@ -24,7 +25,10 @@ const ChatView = ({
   // Anderen Teilnehmer bestimmen
   const isAgency = currentUserType === 'agency';
   const otherName = isAgency ? chat?.freelancerName : chat?.agencyName;
-  const otherAvatar = isAgency ? chat?.freelancerAvatar : chat?.agencyLogo;
+  const otherProfileImage = isAgency ? chat?.freelancerProfileImage : chat?.agencyProfileImage;
+  const nameParts = (otherName || '').split(' ');
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
 
   // Auto-scroll zu neuester Nachricht
   useEffect(() => {
@@ -90,9 +94,12 @@ const ChatView = ({
             onClick={onOpenProfile}
             className="flex items-center gap-3 flex-1 hover:opacity-80 transition-opacity"
           >
-            <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-lg">
-              {otherAvatar || <User className="w-5 h-5 text-gray-400" />}
-            </div>
+            <ProfileAvatar
+              imageUrl={otherProfileImage}
+              firstName={firstName}
+              lastName={lastName}
+              size="sm"
+            />
             <div className="text-left">
               <h3 className="font-medium text-gray-900 dark:text-white">{otherName}</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">

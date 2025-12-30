@@ -120,94 +120,32 @@ export const useProfile = (freelancerId, agencyId) => {
   }, [freelancerId]);
 
   /**
-   * Fügt einen Skill zum Freelancer-Profil hinzu
-   * @param {string} skill - Neuer Skill
+   * Fügt einen Tag zum Freelancer-Profil hinzu
+   * @param {string} tag - Neuer Tag (Skill, Equipment oder Sprache)
    */
-  const addSkill = useCallback((skill) => {
-    if (!skill.trim()) return;
+  const addTag = useCallback((tag) => {
+    if (!tag.trim()) return;
 
     setFreelancers(prev => prev.map(f => {
       if (f.id !== freelancerId) return f;
-      const currentSkills = f.skills || [];
-      if (currentSkills.includes(skill.trim())) return f;
+      const currentTags = f.tags || [];
+      if (currentTags.includes(tag.trim())) return f;
 
       return {
         ...f,
-        skills: [...currentSkills, skill.trim()]
+        tags: [...currentTags, tag.trim()]
       };
     }));
   }, [freelancerId]);
 
   /**
-   * Entfernt einen Skill vom Freelancer-Profil
-   * @param {string} skill - Zu entfernender Skill
+   * Entfernt einen Tag vom Freelancer-Profil
+   * @param {string} tag - Zu entfernender Tag
    */
-  const removeSkill = useCallback((skill) => {
+  const removeTag = useCallback((tag) => {
     setFreelancers(prev => prev.map(f =>
       f.id === freelancerId
-        ? { ...f, skills: (f.skills || []).filter(s => s !== skill) }
-        : f
-    ));
-  }, [freelancerId]);
-
-  /**
-   * Fügt Equipment zum Freelancer-Profil hinzu
-   * @param {string} item - Neues Equipment
-   */
-  const addEquipment = useCallback((item) => {
-    if (!item.trim()) return;
-
-    setFreelancers(prev => prev.map(f => {
-      if (f.id !== freelancerId) return f;
-      const currentEquipment = f.equipment || [];
-      if (currentEquipment.includes(item.trim())) return f;
-
-      return {
-        ...f,
-        equipment: [...currentEquipment, item.trim()]
-      };
-    }));
-  }, [freelancerId]);
-
-  /**
-   * Entfernt Equipment vom Freelancer-Profil
-   * @param {string} item - Zu entfernendes Equipment
-   */
-  const removeEquipment = useCallback((item) => {
-    setFreelancers(prev => prev.map(f =>
-      f.id === freelancerId
-        ? { ...f, equipment: (f.equipment || []).filter(e => e !== item) }
-        : f
-    ));
-  }, [freelancerId]);
-
-  /**
-   * Fügt eine Sprache zum Freelancer-Profil hinzu
-   * @param {string} language - Neue Sprache
-   */
-  const addLanguage = useCallback((language) => {
-    if (!language.trim()) return;
-
-    setFreelancers(prev => prev.map(f => {
-      if (f.id !== freelancerId) return f;
-      const currentLanguages = f.languages || [];
-      if (currentLanguages.includes(language.trim())) return f;
-
-      return {
-        ...f,
-        languages: [...currentLanguages, language.trim()]
-      };
-    }));
-  }, [freelancerId]);
-
-  /**
-   * Entfernt eine Sprache vom Freelancer-Profil
-   * @param {string} language - Zu entfernende Sprache
-   */
-  const removeLanguage = useCallback((language) => {
-    setFreelancers(prev => prev.map(f =>
-      f.id === freelancerId
-        ? { ...f, languages: (f.languages || []).filter(l => l !== language) }
+        ? { ...f, tags: (f.tags || []).filter(t => t !== tag) }
         : f
     ));
   }, [freelancerId]);
@@ -598,12 +536,8 @@ export const useProfile = (freelancerId, agencyId) => {
     // Array-Operationen für Freelancer
     addProfession,
     removeProfession,
-    addSkill,
-    removeSkill,
-    addEquipment,
-    removeEquipment,
-    addLanguage,
-    removeLanguage,
+    addTag,
+    removeTag,
 
     // Portfolio (erweitert)
     addPortfolioItem,

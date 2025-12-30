@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, MessageCircle, Calendar, FileText } from 'lucide-react';
 import { MESSAGE_TYPES } from '../../hooks/useMessages';
+import { ProfileAvatar } from '../shared/ProfileField';
 
 /**
  * ChatList - Übersicht aller Chats
@@ -107,7 +108,10 @@ const ChatList = ({
       <div className="space-y-2">
         {filteredChats.map(chat => {
           const otherName = isAgency ? chat.freelancerName : chat.agencyName;
-          const otherAvatar = isAgency ? chat.freelancerAvatar : chat.agencyLogo;
+          const otherProfileImage = isAgency ? chat.freelancerProfileImage : chat.agencyProfileImage;
+          const nameParts = otherName.split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
           const unreadCount = getUnreadCount(chat);
           const hasUnread = unreadCount > 0;
 
@@ -126,9 +130,13 @@ const ChatList = ({
             >
               {/* Avatar */}
               <div className="relative flex-shrink-0">
-                <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center text-xl">
-                  {otherAvatar || '👤'}
-                </div>
+                <ProfileAvatar
+                  imageUrl={otherProfileImage}
+                  firstName={firstName}
+                  lastName={lastName}
+                  size="sm"
+                  className="w-12 h-12 text-base"
+                />
                 {hasUnread && (
                   <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}

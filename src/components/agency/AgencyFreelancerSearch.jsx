@@ -13,6 +13,7 @@ import {
 import { PROFESSIONS } from '../../constants/profileOptions';
 import { AVAILABILITY_COLORS } from '../../constants/calendar';
 import FavoriteButton from '../shared/FavoriteButton';
+import { ProfileAvatar } from '../shared/ProfileField';
 
 /**
  * AgencyFreelancerSearch - Eigenständige Suchseite für Freelancer
@@ -300,7 +301,6 @@ const AgencyFreelancerSearch = ({
           {filteredFreelancers.map(freelancer => {
             const availabilityStatus = getAvailabilityStatus(freelancer.id);
             const fullName = `${freelancer.firstName} ${freelancer.lastName}`;
-            const initials = `${freelancer.firstName?.[0] || ''}${freelancer.lastName?.[0] || ''}`;
 
             return (
               <div
@@ -311,9 +311,12 @@ const AgencyFreelancerSearch = ({
                 {/* Header */}
                 <div className="flex items-start gap-3 mb-3">
                   {/* Avatar */}
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-accent/20 to-accent/40 flex items-center justify-center text-lg font-bold text-gray-700 dark:text-gray-200 flex-shrink-0">
-                    {freelancer.avatar || initials}
-                  </div>
+                  <ProfileAvatar
+                    imageUrl={freelancer.profileImage}
+                    firstName={freelancer.firstName}
+                    lastName={freelancer.lastName}
+                    size="md"
+                  />
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">

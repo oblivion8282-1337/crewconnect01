@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { X, Calendar, User, Euro, FileText, MessageSquare, CheckCircle } from 'lucide-react';
+import React, { useState, useRef, useCallback } from 'react';
+import { X, Calendar, User, Euro, FileText, MessageSquare, CheckCircle, ChevronDown, ChevronUp, GripHorizontal } from 'lucide-react';
 import { formatDateShort } from '../../utils/dateUtils';
+import { ProfileAvatar } from '../shared/ProfileField';
 
 /**
  * BookingConfirmationModal - Bestätigung vor einer Buchung mit Zusammenfassung und Nachrichtenfeld
@@ -16,6 +17,30 @@ const BookingConfirmationModal = ({
   onCancel
 }) => {
   const [message, setMessage] = useState('');
+  const [daysExpanded, setDaysExpanded] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef(null);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+
+  // Drag handlers
+  const handleMouseDown = useCallback((e) => {
+    if (e.target.closest('button') || e.target.closest('textarea') || e.target.closest('input')) return;
+    setIsDragging(true);
+    dragStartPos.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+  }, [position]);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragStartPos.current.x,
+      y: e.clientY - dragStartPos.current.y
+    });
+  }, [isDragging]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
 
   const fullName = `${freelancer.firstName} ${freelancer.lastName}`;
   const sortedDays = [...selectedDays].sort();
@@ -37,7 +62,12 @@ const BookingConfirmationModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50"
@@ -45,9 +75,19 @@ const BookingConfirmationModal = ({
       />
 
       {/* Modal */}
-      <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
-        {/* Header */}
-        <div className={`p-6 ${isOption ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-green-50 dark:bg-green-900/20'}`}>
+      <div
+        ref={dragRef}
+        className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          cursor: isDragging ? 'grabbing' : 'default'
+        }}
+      >
+        {/* Header - Draggable */}
+        <div
+          className={`p-6 ${isOption ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-green-50 dark:bg-green-900/20'} cursor-grab active:cursor-grabbing`}
+          onMouseDown={handleMouseDown}
+        >
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
@@ -66,12 +106,15 @@ const BookingConfirmationModal = ({
                 </p>
               </div>
             </div>
-            <button
-              onClick={onCancel}
-              className="p-2 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-            </button>
+            <div className="flex items-center gap-1">
+              <GripHorizontal className="w-5 h-5 text-gray-400" />
+              <button
+                onClick={onCancel}
+                className="p-2 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -79,7 +122,12 @@ const BookingConfirmationModal = ({
         <div className="p-6 space-y-4">
           {/* Freelancer */}
           <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-            <span className="text-3xl">{freelancer.avatar}</span>
+            <ProfileAvatar
+              imageUrl={freelancer.profileImage}
+              firstName={freelancer.firstName}
+              lastName={freelancer.lastName}
+              size="md"
+            />
             <div>
               <p className="font-bold text-gray-900 dark:text-white">{fullName}</p>
               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -113,9 +161,35 @@ const BookingConfirmationModal = ({
               <span className="text-xs font-medium">Zeitraum</span>
             </div>
             <p className="font-medium text-gray-900 dark:text-white">{formatDateRange()}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {selectedDays.length} Tag{selectedDays.length !== 1 ? 'e' : ''} ausgewählt
-            </p>
+            <button
+              onClick={() => setDaysExpanded(!daysExpanded)}
+              className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mt-1"
+            >
+              <span>{selectedDays.length} Tag{selectedDays.length !== 1 ? 'e' : ''} ausgewählt</span>
+              {daysExpanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+            {daysExpanded && (
+              <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                  {sortedDays.map(day => {
+                    const date = new Date(day);
+                    const weekday = date.toLocaleDateString('de-DE', { weekday: 'short' });
+                    return (
+                      <span
+                        key={day}
+                        className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md"
+                      >
+                        {weekday}, {formatDateShort(day)}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Kosten */}

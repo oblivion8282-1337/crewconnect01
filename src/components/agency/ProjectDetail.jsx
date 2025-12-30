@@ -16,7 +16,10 @@ import {
   ChevronRight,
   ZoomIn,
   ZoomOut,
-  RotateCcw
+  RotateCcw,
+  CheckCircle,
+  AlertTriangle,
+  Palette
 } from 'lucide-react';
 import FreelancerSearchModal from '../modals/FreelancerSearchModal';
 import DateRangePicker from '../shared/DateRangePicker';
@@ -35,14 +38,87 @@ import {
   PROJECT_STATUS_COLORS
 } from '../../data/initialData';
 
+// Vordefinierte Farben für Phasen
+const PHASE_COLORS = [
+  { id: 'gray', bg: 'bg-gray-50 dark:bg-gray-800', border: 'border-gray-200 dark:border-gray-700', preview: 'bg-gray-200 dark:bg-gray-600' },
+  { id: 'blue', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', preview: 'bg-blue-400' },
+  { id: 'emerald', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', preview: 'bg-emerald-400' },
+  { id: 'amber', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', preview: 'bg-amber-400' },
+  { id: 'violet', bg: 'bg-violet-50 dark:bg-violet-900/20', border: 'border-violet-200 dark:border-violet-800', preview: 'bg-violet-400' },
+  { id: 'rose', bg: 'bg-rose-50 dark:bg-rose-900/20', border: 'border-rose-200 dark:border-rose-800', preview: 'bg-rose-400' },
+  { id: 'cyan', bg: 'bg-cyan-50 dark:bg-cyan-900/20', border: 'border-cyan-200 dark:border-cyan-800', preview: 'bg-cyan-400' },
+  { id: 'orange', bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-800', preview: 'bg-orange-400' }
+];
+
 /**
  * ProjectDetail - Detailansicht eines Projekts
  */
+/**
+ * Bestätigungs-Modal für kritische Aktionen
+ */
+const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, confirmColor = 'red', icon: Icon }) => {
+  if (!isOpen) return null;
+
+  const colorClasses = {
+    red: {
+      bg: 'bg-red-100 dark:bg-red-900/40',
+      icon: 'text-red-600 dark:text-red-400',
+      button: 'bg-red-600 hover:bg-red-700'
+    },
+    green: {
+      bg: 'bg-emerald-100 dark:bg-emerald-900/40',
+      icon: 'text-emerald-600 dark:text-emerald-400',
+      button: 'bg-emerald-600 hover:bg-emerald-700'
+    }
+  };
+
+  const colors = colorClasses[confirmColor] || colorClasses.red;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
+        {/* Header */}
+        <div className="p-6 pb-4">
+          <div className="flex items-start gap-4">
+            <div className={`w-12 h-12 ${colors.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+              <Icon className={`w-6 h-6 ${colors.icon}`} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{title}</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{message}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="px-6 pb-6 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            Abbrechen
+          </button>
+          <button
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className={`flex-1 px-4 py-3 ${colors.button} text-white rounded-xl font-medium transition-colors`}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ProjectDetail = ({
   project,
   bookings,
   freelancers,
   agencyId,
+  agencyProfile,
   getDayStatus,
   onBack,
   onBackToProjects,
@@ -51,6 +127,7 @@ const ProjectDetail = ({
   onWithdraw,
   onUpdateProject,
   onDeleteProject,
+  onCancelProjectBookings,
   onAddPhase,
   onUpdatePhase,
   onDeletePhase,
@@ -62,12 +139,16 @@ const ProjectDetail = ({
   getListsForFreelancer,
   onAddToList,
   onRemoveFromList,
-  onOpenAddToListModal
+  onOpenAddToListModal,
+  // Chat Props
+  getOrCreateChat,
+  onOpenChat
 }) => {
   const [searchContext, setSearchContext] = useState(null);
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [editingSection, setEditingSection] = useState(null);
   const [editData, setEditData] = useState({});
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: null });
 
   // Buchungen für dieses Projekt
   const projectBookings = useMemo(() =>
@@ -99,16 +180,10 @@ const ProjectDetail = ({
     return Array.from(teamMap.values());
   }, [projectBookings, freelancers]);
 
-  // Budget-Berechnung
-  const budgetInfo = useMemo(() => {
-    const planned = project.phases?.reduce((sum, phase) => sum + (phase.budget || 0), 0) || 0;
-    const total = project.budget?.total || 0;
-    const spent = project.budget?.spent || 0;
-    const remaining = total - spent;
-    const percentUsed = total > 0 ? Math.round((spent / total) * 100) : 0;
-
-    return { total, spent, remaining, planned, percentUsed };
-  }, [project]);
+  // Ausgaben-Berechnung: Summe aller Phasen-Kosten
+  const totalExpenses = useMemo(() => {
+    return project.phases?.reduce((sum, phase) => sum + (phase.budget || 0), 0) || 0;
+  }, [project.phases]);
 
   const handleOpenSearch = (phase) => {
     setSearchContext({ project, phase });
@@ -124,10 +199,6 @@ const ProjectDetail = ({
       onUpdateProject(project.id, editData);
     } else if (editingSection === 'client') {
       onUpdateProject(project.id, { clientContact: editData });
-    } else if (editingSection === 'budget') {
-      onUpdateProject(project.id, {
-        budget: { ...project.budget, total: editData.total }
-      });
     }
     setEditingSection(null);
     setEditData({});
@@ -264,71 +335,32 @@ const ProjectDetail = ({
           )}
         </div>
 
-        {/* Budget */}
+        {/* Ausgaben */}
         <div className="bg-white dark:bg-gray-800 rounded-card border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Budget</h2>
-            {editingSection !== 'budget' && (
-              <button
-                onClick={() => handleStartEdit('budget', { total: budgetInfo.total })}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-              >
-                <Edit2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-              </button>
-            )}
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Ausgaben</h2>
+
+          <div className="text-center py-2">
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {totalExpenses.toLocaleString('de-DE')} €
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Summe aller Phasen
+            </p>
           </div>
 
-          {editingSection === 'budget' ? (
-            <BudgetEditForm
-              data={editData}
-              onChange={setEditData}
-              onSave={handleSaveEdit}
-              onCancel={() => setEditingSection(null)}
-            />
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-500 dark:text-gray-400">Ausgegeben</span>
+          {project.phases?.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+              {project.phases.map(phase => (
+                <div key={phase.id} className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">{phase.name}</span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    {budgetInfo.spent.toLocaleString('de-DE')} € / {budgetInfo.total.toLocaleString('de-DE')} €
+                    {(phase.budget || 0).toLocaleString('de-DE')} €
                   </span>
                 </div>
-                <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      budgetInfo.percentUsed > 90 ? 'bg-red-500' :
-                      budgetInfo.percentUsed > 70 ? 'bg-yellow-500' : 'bg-green-500'
-                    }`}
-                    style={{ width: `${Math.min(budgetInfo.percentUsed, 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-200 dark:border-gray-700 text-sm">
-                <div>
-                  <p className="text-gray-500 dark:text-gray-400">Verplant (Phasen)</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{budgetInfo.planned.toLocaleString('de-DE')} €</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 dark:text-gray-400">Verbleibend</p>
-                  <p className={`font-medium ${budgetInfo.remaining < 0 ? 'text-red-600' : 'text-gray-900 dark:text-white'}`}>
-                    {budgetInfo.remaining.toLocaleString('de-DE')} €
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
           )}
         </div>
-      </div>
-
-      {/* Phasen-Timeline */}
-      <div className="mb-6">
-        <PhaseTimeline
-          phases={project.phases || []}
-          bookings={projectBookings}
-          onSelectPhase={onSelectPhase}
-        />
       </div>
 
       {/* Phasen */}
@@ -376,6 +408,7 @@ const ProjectDetail = ({
                   projectId={project.id}
                   bookings={projectBookings.filter(b => b.phaseId === phase.id)}
                   onDeletePhase={onDeletePhase}
+                  onUpdatePhase={onUpdatePhase}
                   onSelectPhase={onSelectPhase}
                 />
               ))}
@@ -383,13 +416,22 @@ const ProjectDetail = ({
 
             <button
               onClick={() => setShowAddPhase(true)}
-              className="w-full mt-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+              className="w-full mt-4 py-3 border-2 border-dashed border-primary/50 rounded-lg text-primary hover:border-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-2"
             >
               <Plus className="w-4 h-4" />
               Phase hinzufügen
             </button>
           </>
         )}
+      </div>
+
+      {/* Phasen-Timeline */}
+      <div className="mb-6">
+        <PhaseTimeline
+          phases={project.phases || []}
+          bookings={projectBookings}
+          onSelectPhase={onSelectPhase}
+        />
       </div>
 
       {/* Team */}
@@ -414,6 +456,53 @@ const ProjectDetail = ({
         )}
       </div>
 
+      {/* Projekt-Aktionen */}
+      {project.status !== PROJECT_STATUS.COMPLETED && project.status !== PROJECT_STATUS.CANCELLED && (
+        <div className="mt-6 space-y-4">
+          {/* Projekt abschließen */}
+          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-card p-5">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-emerald-800 dark:text-emerald-300 mb-1">Projekt abschließen</h3>
+                <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-3">
+                  Markiere dieses Projekt als erfolgreich abgeschlossen. Es wird in den Tab "Abgeschlossen" verschoben.
+                </p>
+                <button
+                  onClick={() => setConfirmModal({ isOpen: true, type: 'complete' })}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Projekt abschließen
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Projekt stornieren */}
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-card p-5">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-red-800 dark:text-red-300 mb-1">Projekt abbrechen</h3>
+                <p className="text-sm text-red-600 dark:text-red-400 mb-3">
+                  Brich dieses Projekt ab. <strong>Alle offenen Buchungen werden automatisch storniert</strong> und die Freelancer werden benachrichtigt. Das Projekt wird in den Tab "Abgebrochen" verschoben.
+                </p>
+                <button
+                  onClick={() => setConfirmModal({ isOpen: true, type: 'cancel' })}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Projekt abbrechen
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modals */}
       {searchContext && (
         <FreelancerSearchModal
@@ -422,6 +511,7 @@ const ProjectDetail = ({
           freelancers={freelancers}
           getDayStatus={getDayStatus}
           agencyId={agencyId}
+          agencyProfile={agencyProfile}
           onBook={onBook}
           onClose={() => setSearchContext(null)}
           isFavorite={isFavorite}
@@ -431,6 +521,8 @@ const ProjectDetail = ({
           onAddToList={onAddToList}
           onRemoveFromList={onRemoveFromList}
           onOpenAddToListModal={onOpenAddToListModal}
+          getOrCreateChat={getOrCreateChat}
+          onOpenChat={onOpenChat}
         />
       )}
 
@@ -444,6 +536,47 @@ const ProjectDetail = ({
           onClose={() => setShowAddPhase(false)}
         />
       )}
+
+      {/* Bestätigungs-Modal: Projekt abschließen */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen && confirmModal.type === 'complete'}
+        onClose={() => setConfirmModal({ isOpen: false, type: null })}
+        onConfirm={() => {
+          onUpdateProject(project.id, { status: PROJECT_STATUS.COMPLETED });
+          onBack();
+        }}
+        title="Projekt abschließen?"
+        message={`Möchtest du "${project.name}" als abgeschlossen markieren? Das Projekt wird in den Tab "Abgeschlossen" verschoben.`}
+        confirmText="Ja, abschließen"
+        confirmColor="green"
+        icon={CheckCircle}
+      />
+
+      {/* Bestätigungs-Modal: Projekt abbrechen */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen && confirmModal.type === 'cancel'}
+        onClose={() => setConfirmModal({ isOpen: false, type: null })}
+        onConfirm={() => {
+          // Erst alle Buchungen stornieren
+          if (onCancelProjectBookings) {
+            onCancelProjectBookings(project.id, 'Projekt wurde abgebrochen');
+          }
+          // Dann Projekt-Status ändern
+          onUpdateProject(project.id, { status: PROJECT_STATUS.CANCELLED });
+          onBack();
+        }}
+        title="Projekt abbrechen?"
+        message={(() => {
+          const activeBookings = projectBookings.filter(b => !['declined', 'withdrawn', 'cancelled'].includes(b.status));
+          if (activeBookings.length > 0) {
+            return `Möchtest du "${project.name}" wirklich abbrechen? ${activeBookings.length} aktive Buchung(en) werden storniert und die Freelancer werden benachrichtigt. Diese Aktion kann nicht rückgängig gemacht werden.`;
+          }
+          return `Möchtest du "${project.name}" wirklich abbrechen? Diese Aktion kann nicht rückgängig gemacht werden.`;
+        })()}
+        confirmText="Ja, abbrechen"
+        confirmColor="red"
+        icon={AlertTriangle}
+      />
     </div>
   );
 };
@@ -726,8 +859,10 @@ const PhaseCard = ({
   projectId,
   bookings,
   onDeletePhase,
+  onUpdatePhase,
   onSelectPhase
 }) => {
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const confirmedCount = bookings.filter(b => isConfirmedStatus(b.status)).length;
   const pendingCount = bookings.filter(b => isPendingStatus(b.status)).length;
   const totalBookings = bookings.length;
@@ -750,9 +885,17 @@ const PhaseCard = ({
     return { startDate, endDate };
   }, [phase.startDate, phase.endDate, bookings]);
 
+  // Hole die Farbe der Phase
+  const phaseColor = PHASE_COLORS.find(c => c.id === phase.color) || PHASE_COLORS[0];
+
+  const handleColorChange = (colorId) => {
+    onUpdatePhase?.(projectId, phase.id, { color: colorId });
+    setShowColorPicker(false);
+  };
+
   return (
     <div
-      className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:bg-gray-900 transition-all group"
+      className={`border rounded-xl p-4 cursor-pointer hover:shadow-md transition-all group ${phaseColor.bg} ${phaseColor.border}`}
       onClick={() => onSelectPhase?.(phase)}
     >
       <div className="flex justify-between items-center">
@@ -783,6 +926,41 @@ const PhaseCard = ({
               Keine Buchungen
             </span>
           )}
+          {/* Color Picker Button */}
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowColorPicker(!showColorPicker);
+              }}
+              className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+              title="Farbe ändern"
+            >
+              <Palette className="w-4 h-4" />
+            </button>
+            {/* Color Picker Dropdown */}
+            {showColorPicker && (
+              <div
+                className="absolute right-0 top-full mt-1 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex gap-1.5 flex-wrap w-[140px]">
+                  {PHASE_COLORS.map(color => (
+                    <button
+                      key={color.id}
+                      onClick={() => handleColorChange(color.id)}
+                      className={`w-6 h-6 rounded-md ${color.preview} transition-all ${
+                        phase.color === color.id || (!phase.color && color.id === 'gray')
+                          ? 'ring-2 ring-offset-1 ring-primary scale-110'
+                          : 'hover:scale-110'
+                      }`}
+                      title={color.id}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -987,28 +1165,6 @@ const ClientEditForm = ({ data, onChange, onSave, onCancel }) => (
   </div>
 );
 
-const BudgetEditForm = ({ data, onChange, onSave, onCancel }) => (
-  <div className="space-y-3">
-    <div>
-      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Gesamtbudget (€)</label>
-      <input
-        type="number"
-        value={data.total || 0}
-        onChange={(e) => onChange({ ...data, total: Number(e.target.value) })}
-        className="w-full p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 text-sm focus:ring-2 focus:ring-blue-500"
-      />
-    </div>
-    <div className="flex gap-2 pt-2">
-      <button onClick={onCancel} className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white">
-        Abbrechen
-      </button>
-      <button onClick={onSave} className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
-        Speichern
-      </button>
-    </div>
-  </div>
-);
-
 /**
  * Modal zum Hinzufügen einer Phase
  */
@@ -1017,7 +1173,8 @@ const AddPhaseModal = ({ projectId, onSave, onClose }) => {
     name: '',
     startDate: '',
     endDate: '',
-    budget: 0
+    budget: 0,
+    color: 'gray'
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -1033,9 +1190,9 @@ const AddPhaseModal = ({ projectId, onSave, onClose }) => {
       title="Neue Phase"
       onClose={onClose}
       defaultWidth={550}
-      defaultHeight={480}
+      defaultHeight={560}
       minWidth={450}
-      minHeight={380}
+      minHeight={460}
     >
       <form onSubmit={handleSubmit} className="p-4 space-y-4 flex-1 overflow-y-auto">
         <div>
@@ -1051,7 +1208,26 @@ const AddPhaseModal = ({ projectId, onSave, onClose }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Budget (€)</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hintergrundfarbe</label>
+          <div className="flex gap-2 flex-wrap">
+            {PHASE_COLORS.map(color => (
+              <button
+                key={color.id}
+                type="button"
+                onClick={() => setFormData({ ...formData, color: color.id })}
+                className={`w-8 h-8 rounded-lg ${color.preview} transition-all ${
+                  formData.color === color.id
+                    ? 'ring-2 ring-offset-2 ring-primary scale-110'
+                    : 'hover:scale-105'
+                }`}
+                title={color.id}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kosten (€)</label>
           <input
             type="number"
             value={formData.budget || ''}

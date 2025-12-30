@@ -1,14 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, AlertTriangle, Calendar, Users, Euro, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, Calendar, Users, Euro, ChevronRight, ChevronDown, Layers } from 'lucide-react';
 import DateRangePicker from '../shared/DateRangePicker';
 import ResizableModal from '../shared/ResizableModal';
 import { formatDate, parseLocalDate } from '../../utils/dateUtils';
-import {
-  BOOKING_STATUS,
-  isPendingStatus,
-  isConfirmedStatus,
-  isTerminalStatus
-} from '../../constants/calendar';
+import { isTerminalStatus } from '../../constants/calendar';
 import {
   PROJECT_STATUS,
   PROJECT_STATUS_LABELS,
@@ -18,26 +13,47 @@ import {
 /**
  * AgencyProjects - Projektübersicht für Agenturen (Listenansicht)
  */
+// Projekt-Kategorien
+const PROJECT_CATEGORIES = {
+  ACTIVE: 'active',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled'
+};
+
+const CATEGORY_LABELS = {
+  [PROJECT_CATEGORIES.ACTIVE]: 'Laufend',
+  [PROJECT_CATEGORIES.COMPLETED]: 'Abgeschlossen',
+  [PROJECT_CATEGORIES.CANCELLED]: 'Abgebrochen'
+};
+
+// Welche Status gehören zu welcher Kategorie
+const getProjectCategory = (status) => {
+  if (status === PROJECT_STATUS.COMPLETED) return PROJECT_CATEGORIES.COMPLETED;
+  if (status === PROJECT_STATUS.CANCELLED) return PROJECT_CATEGORIES.CANCELLED;
+  return PROJECT_CATEGORIES.ACTIVE; // planning, pre_production, production, post_production, on_hold
+};
+
 const AgencyProjects = ({
   projects,
   bookings,
-  freelancers,
   agencyId,
-  onConvertToFix,
   onAddProject,
   onSelectProject
 }) => {
   const [showCreateProject, setShowCreateProject] = useState(false);
+  const [activeCategory, setActiveCategory] = useState(PROJECT_CATEGORIES.ACTIVE);
 
   // Filtere Projekte der aktuellen Agentur
   const agencyProjects = projects.filter(p => p.agencyId === agencyId);
 
-  // Finde offene Optionen
-  const openOptions = bookings.filter(b =>
-    b.agencyId === agencyId &&
-    b.status === BOOKING_STATUS.OPTION_CONFIRMED &&
-    !b.reschedule
-  );
+  // Kategorisiere Projekte
+  const categorizedProjects = useMemo(() => {
+    return {
+      [PROJECT_CATEGORIES.ACTIVE]: agencyProjects.filter(p => getProjectCategory(p.status) === PROJECT_CATEGORIES.ACTIVE),
+      [PROJECT_CATEGORIES.COMPLETED]: agencyProjects.filter(p => getProjectCategory(p.status) === PROJECT_CATEGORIES.COMPLETED),
+      [PROJECT_CATEGORIES.CANCELLED]: agencyProjects.filter(p => getProjectCategory(p.status) === PROJECT_CATEGORIES.CANCELLED)
+    };
+  }, [agencyProjects]);
 
   const handleCreateProject = (projectData) => {
     onAddProject({
@@ -58,18 +74,17 @@ const AgencyProjects = ({
       );
 
       const uniqueFreelancers = new Set(projectBookings.map(b => b.freelancerId));
-      const confirmedBookings = projectBookings.filter(b => isConfirmedStatus(b.status));
-      const pendingBookings = projectBookings.filter(b => isPendingStatus(b.status));
 
       stats[project.id] = {
         freelancerCount: uniqueFreelancers.size,
-        confirmedCount: confirmedBookings.length,
-        pendingCount: pendingBookings.length,
         phaseCount: project.phases?.length || 0
       };
     });
     return stats;
   }, [agencyProjects, bookings, agencyId]);
+
+  // Aktuelle Projekte basierend auf Kategorie
+  const currentProjects = categorizedProjects[activeCategory] || [];
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -85,13 +100,37 @@ const AgencyProjects = ({
         </button>
       </div>
 
-      {/* Offene Optionen Warnung */}
-      {openOptions.length > 0 && (
-        <OpenOptionsWarning
-          options={openOptions}
-          onConvertToFix={onConvertToFix}
-        />
-      )}
+      {/* Kategorie-Tabs */}
+      <div className="flex gap-2 mb-6">
+        {Object.values(PROJECT_CATEGORIES).map(category => {
+          const count = categorizedProjects[category]?.length || 0;
+          const isActive = activeCategory === category;
+          return (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              className={`
+                px-4 py-2 rounded-xl text-sm font-medium transition-all
+                ${isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }
+              `}
+            >
+              {CATEGORY_LABELS[category]}
+              {count > 0 && (
+                <span className={`ml-2 px-1.5 py-0.5 rounded-md text-xs ${
+                  isActive
+                    ? 'bg-white/20 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                }`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Projektliste */}
       {agencyProjects.length === 0 ? (
@@ -104,9 +143,13 @@ const AgencyProjects = ({
             Erstes Projekt erstellen
           </button>
         </div>
+      ) : currentProjects.length === 0 ? (
+        <div className="bg-white dark:bg-gray-800 rounded-card shadow-sm p-8 text-center text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+          <p>Keine {CATEGORY_LABELS[activeCategory].toLowerCase()}en Projekte.</p>
+        </div>
       ) : (
         <div className="space-y-4">
-          {agencyProjects.map(project => (
+          {currentProjects.map(project => (
             <ProjectListCard
               key={project.id}
               project={project}
@@ -127,39 +170,6 @@ const AgencyProjects = ({
     </div>
   );
 };
-
-/**
- * Warnung für offene Optionen
- */
-const OpenOptionsWarning = ({ options, onConvertToFix }) => (
-  <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-card">
-    <h2 className="font-bold text-yellow-800 dark:text-yellow-300 mb-3 flex items-center gap-2">
-      <AlertTriangle className="w-5 h-5" />
-      Offene Optionen ({options.length})
-    </h2>
-    {options.map(option => (
-      <div
-        key={option.id}
-        className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-xl mb-2 last:mb-0 border border-gray-200 dark:border-gray-700"
-      >
-        <div>
-          <p className="font-medium text-sm text-gray-900 dark:text-white">
-            {option.freelancerName} • {option.projectName}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-400">
-            {option.dates.length} Tage • {option.totalCost?.toLocaleString('de-DE')}€
-          </p>
-        </div>
-        <button
-          onClick={() => onConvertToFix(option)}
-          className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition-colors"
-        >
-          Fix buchen
-        </button>
-      </div>
-    ))}
-  </div>
-);
 
 /**
  * Kompakte Projektkarte für Listenansicht
@@ -205,7 +215,7 @@ const ProjectListCard = ({ project, stats, onClick }) => {
 
               {/* Phasen */}
               <span className="flex items-center gap-1">
-                <span className="text-lg leading-none">📋</span>
+                <Layers className="w-4 h-4" />
                 {stats.phaseCount} {stats.phaseCount === 1 ? 'Phase' : 'Phasen'}
               </span>
 
@@ -250,21 +260,6 @@ const ProjectListCard = ({ project, stats, onClick }) => {
           </div>
         )}
 
-        {/* Pending/Confirmed Badges */}
-        {(stats.pendingCount > 0 || stats.confirmedCount > 0) && (
-          <div className="mt-3 flex gap-2">
-            {stats.confirmedCount > 0 && (
-              <span className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs">
-                {stats.confirmedCount} bestätigte Buchung{stats.confirmedCount !== 1 ? 'en' : ''}
-              </span>
-            )}
-            {stats.pendingCount > 0 && (
-              <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg text-xs">
-                {stats.pendingCount} offene Anfrage{stats.pendingCount !== 1 ? 'n' : ''}
-              </span>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -283,8 +278,7 @@ const CreateProjectModal = ({ onSave, onClose }) => {
     contactEmail: '',
     contactPhone: '',
     startDate: '',
-    endDate: '',
-    budget: { total: 0 }
+    endDate: ''
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -320,9 +314,9 @@ const CreateProjectModal = ({ onSave, onClose }) => {
       title="Neues Projekt"
       onClose={onClose}
       defaultWidth={700}
-      defaultHeight={950}
+      defaultHeight={850}
       minWidth={550}
-      minHeight={750}
+      minHeight={650}
     >
       <form onSubmit={handleSubmit} className="p-4 space-y-4 flex-1 overflow-y-auto">
         {/* Projektname */}
@@ -425,20 +419,6 @@ const CreateProjectModal = ({ onSave, onClose }) => {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Budget */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Gesamtbudget (€)
-          </label>
-          <input
-            type="number"
-            value={formData.budget.total || ''}
-            onChange={(e) => setFormData({ ...formData, budget: { total: Number(e.target.value) } })}
-            placeholder="z.B. 50000"
-            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-          />
         </div>
 
         {/* Projektzeitraum */}

@@ -89,7 +89,7 @@ const AddToListModal = ({
               value={listName}
               onChange={(e) => setListName(e.target.value)}
               placeholder="z.B. Stammteam, Kameraleute, Favoriten 2025..."
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-accent focus:border-transparent"
+              className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent"
               autoFocus
             />
           </div>
@@ -128,7 +128,7 @@ const AddToListModal = ({
                   type="checkbox"
                   checked={addFreelancer}
                   onChange={(e) => setAddFreelancer(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-accent focus:ring-accent"
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary"
                 />
                 <span className="text-sm text-gray-700 dark:text-gray-300">
                   <strong>{freelancer.name}</strong> direkt zur Liste hinzufügen
@@ -142,14 +142,14 @@ const AddToListModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Abbrechen
             </button>
             <button
               type="submit"
               disabled={!listName.trim() || isSubmitting}
-              className="flex-1 px-4 py-2 rounded-lg bg-accent text-gray-900 font-medium hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>

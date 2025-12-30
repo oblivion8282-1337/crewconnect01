@@ -70,12 +70,17 @@ const App = () => {
   const [selectedFreelancerId, setSelectedFreelancerId] = useState(null);
   const [bookFromProfileFreelancer, setBookFromProfileFreelancer] = useState(null);
 
+  // === Freelancer Project Navigation State ===
+  const [freelancerSelectedProjectId, setFreelancerSelectedProjectId] = useState(null);
+  const [freelancerSelectedPhaseId, setFreelancerSelectedPhaseId] = useState(null);
+
   // === Messaging State ===
   const [selectedChatId, setSelectedChatId] = useState(null);
   const [bookingFromChatFreelancerId, setBookingFromChatFreelancerId] = useState(null);
 
   // === AddFreelancerToCrewModal State ===
-  const [addFreelancerModalOpen, setAddFreelancerModalOpen] = useState(false);
+  // null = closed, 'favorites' = open for favorites, listId = open with that list pre-selected
+  const [addFreelancerModalListId, setAddFreelancerModalListId] = useState(null);
 
   // === Project Logic ===
   const {
@@ -105,12 +110,8 @@ const App = () => {
     updateAgencyProfile,
     addProfession,
     removeProfession,
-    addSkill,
-    removeSkill,
-    addEquipment,
-    removeEquipment,
-    addLanguage,
-    removeLanguage,
+    addTag,
+    removeTag,
     addPortfolioItem,
     updatePortfolioItem,
     removePortfolioItem,
@@ -149,6 +150,7 @@ const App = () => {
     declineBooking,
     withdrawBooking,
     cancelBooking,
+    cancelProjectBookings,
     convertOptionToFix,
     createBooking,
     declineOverlappingBookings,
@@ -199,7 +201,31 @@ const App = () => {
     [roleNotifications]
   );
 
-  const navBadgeCount = pendingBookingsCount + rescheduleRequestsCount;
+  // Ungelesene Buchungs-Notifications für Freelancer (z.B. Option zu Fix umgewandelt)
+  const freelancerBookingNotificationsCount = useMemo(() => {
+    if (userRole !== USER_ROLES.FREELANCER) return 0;
+    // Zähle ungelesene Notifications für Freelancer
+    const bookingTypes = ['option_to_fix'];
+    return notifications.filter(n =>
+      n.forRole === 'freelancer' &&
+      !n.read &&
+      bookingTypes.includes(n.type)
+    ).length;
+  }, [notifications, userRole]);
+
+  const navBadgeCount = pendingBookingsCount + rescheduleRequestsCount + freelancerBookingNotificationsCount;
+
+  // Ungelesene Buchungs-Notifications für Agentur
+  const agencyBookingNotificationsCount = useMemo(() => {
+    if (userRole !== USER_ROLES.AGENCY) return 0;
+    // Zähle ungelesene Notifications, die mit Buchungen zu tun haben
+    const bookingTypes = ['confirmed', 'declined', 'cancelled', 'option_overtaken', 'reschedule_confirmed', 'reschedule_declined'];
+    return notifications.filter(n =>
+      n.forRole === 'agency' &&
+      !n.read &&
+      bookingTypes.includes(n.type)
+    ).length;
+  }, [notifications, userRole]);
 
   // === Event Handlers ===
   const handleRoleChange = (newRole) => {
@@ -274,10 +300,10 @@ const App = () => {
     const chat = getOrCreateChat(
       agencyId,
       agencyProfile?.name || 'Agentur',
-      agencyProfile?.logo || '🎬',
+      agencyProfile?.profileImage || null,
       freelancerIdToChat,
       `${freelancer.firstName} ${freelancer.lastName}`,
-      freelancer.avatar || '👤'
+      freelancer.profileImage || null
     );
 
     setCurrentView('messages');
@@ -404,9 +430,26 @@ const App = () => {
           setSelectedPhaseId(null);
           setSelectedFreelancerId(null);
           setSelectedChatId(null);
+          setFreelancerSelectedProjectId(null);
+          setFreelancerSelectedPhaseId(null);
+          // Markiere Buchungs-Notifications als gelesen wenn Agentur auf Buchungen klickt
+          if (view === 'bookings' && userRole === USER_ROLES.AGENCY) {
+            const bookingTypes = ['confirmed', 'declined', 'cancelled', 'option_overtaken', 'reschedule_confirmed', 'reschedule_declined'];
+            notifications
+              .filter(n => n.forRole === 'agency' && !n.read && bookingTypes.includes(n.type))
+              .forEach(n => markNotificationAsRead(n.id));
+          }
+          // Markiere Freelancer-Notifications als gelesen wenn Freelancer auf Buchungen klickt
+          if (view === 'requests' && userRole === USER_ROLES.FREELANCER) {
+            const bookingTypes = ['option_to_fix'];
+            notifications
+              .filter(n => n.forRole === 'freelancer' && !n.read && bookingTypes.includes(n.type))
+              .forEach(n => markNotificationAsRead(n.id));
+          }
         }}
         badgeCount={navBadgeCount}
         messageBadgeCount={userRole === USER_ROLES.FREELANCER ? freelancerUnreadMessages : agencyUnreadMessages}
+        bookingsBadgeCount={agencyBookingNotificationsCount}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         isCollapsed={sidebarCollapsed}
@@ -446,6 +489,7 @@ const App = () => {
               freelancerId={freelancerId}
               freelancerProfile={freelancerProfile}
               currentDate={currentDate}
+              getDayStatus={getDayStatus}
               onAccept={handleAcceptBooking}
               onDecline={handleDeclineBooking}
               onCancel={handleOpenCancelModal}
@@ -465,6 +509,11 @@ const App = () => {
               onCancel={handleOpenCancelModal}
               onAcceptReschedule={acceptReschedule}
               onDeclineReschedule={declineReschedule}
+              onNavigateToProject={(projectId, phaseId) => {
+                setFreelancerSelectedProjectId(projectId);
+                setFreelancerSelectedPhaseId(phaseId);
+                setCurrentView('projects');
+              }}
             />
           )}
 
@@ -474,6 +523,8 @@ const App = () => {
               projects={projects}
               freelancers={freelancers}
               freelancerId={freelancerId}
+              initialProjectId={freelancerSelectedProjectId}
+              initialPhaseId={freelancerSelectedPhaseId}
             />
           )}
 
@@ -505,12 +556,8 @@ const App = () => {
               onUpdate={updateFreelancerProfile}
               onAddProfession={addProfession}
               onRemoveProfession={removeProfession}
-              onAddSkill={addSkill}
-              onRemoveSkill={removeSkill}
-              onAddEquipment={addEquipment}
-              onRemoveEquipment={removeEquipment}
-              onAddLanguage={addLanguage}
-              onRemoveLanguage={removeLanguage}
+              onAddTag={addTag}
+              onRemoveTag={removeTag}
               onAddPortfolioItem={addPortfolioItem}
               onUpdatePortfolioItem={updatePortfolioItem}
               onRemovePortfolioItem={removePortfolioItem}
@@ -567,9 +614,7 @@ const App = () => {
             <AgencyProjects
               projects={projects}
               bookings={bookings}
-              freelancers={freelancers}
               agencyId={agencyId}
-              onConvertToFix={handleConvertToFix}
               onAddProject={addProject}
               onSelectProject={setSelectedProjectId}
             />
@@ -581,6 +626,7 @@ const App = () => {
               bookings={bookings}
               freelancers={freelancers}
               agencyId={agencyId}
+              agencyProfile={agencyProfile}
               getDayStatus={getDayStatus}
               onBack={() => setSelectedProjectId(null)}
               onBackToProjects={() => setSelectedProjectId(null)}
@@ -589,6 +635,7 @@ const App = () => {
               onWithdraw={handleWithdrawBooking}
               onUpdateProject={updateProject}
               onDeleteProject={deleteProject}
+              onCancelProjectBookings={cancelProjectBookings}
               onAddPhase={addPhase}
               onUpdatePhase={updatePhase}
               onDeletePhase={deletePhase}
@@ -600,6 +647,11 @@ const App = () => {
               onAddToList={addToCrewList}
               onRemoveFromList={removeFromCrewList}
               onOpenAddToListModal={handleOpenAddToListModal}
+              getOrCreateChat={getOrCreateChat}
+              onOpenChat={(chatId) => {
+                setCurrentView('messages');
+                setSelectedChatId(chatId);
+              }}
             />
           )}
 
@@ -610,6 +662,7 @@ const App = () => {
               bookings={bookings}
               freelancers={freelancers}
               agencyId={agencyId}
+              agencyProfile={agencyProfile}
               getDayStatus={getDayStatus}
               onBack={() => setSelectedPhaseId(null)}
               onBackToProjects={() => {
@@ -627,6 +680,11 @@ const App = () => {
               onAddToList={addToCrewList}
               onRemoveFromList={removeFromCrewList}
               onOpenAddToListModal={handleOpenAddToListModal}
+              getOrCreateChat={getOrCreateChat}
+              onOpenChat={(chatId) => {
+                setCurrentView('messages');
+                setSelectedChatId(chatId);
+              }}
             />
           )}
 
@@ -639,14 +697,11 @@ const App = () => {
               onReschedule={handleOpenRescheduleModal}
               onCancel={handleOpenCancelModal}
               onWithdrawReschedule={withdrawReschedule}
-            />
-          )}
-
-          {userRole === USER_ROLES.AGENCY && currentView === 'history' && (
-            <BookingHistory
-              bookings={bookings}
-              userRole={userRole}
-              userId={agencyId}
+              onNavigateToPhase={(projectId, phaseId) => {
+                setSelectedProjectId(projectId);
+                setSelectedPhaseId(phaseId);
+                setCurrentView('projects');
+              }}
             />
           )}
 
@@ -674,7 +729,7 @@ const App = () => {
               onAddToList={addToCrewList}
               onRemoveFromList={removeFromCrewList}
               onOpenAddToListModal={handleOpenAddToListModal}
-              onOpenAddFreelancerModal={() => setAddFreelancerModalOpen(true)}
+              onOpenAddFreelancerModal={(listId) => setAddFreelancerModalListId(listId || 'favorites')}
               onOpenChat={handleOpenChatFromCrew}
               onSelectFreelancer={(id) => {
                 setSelectedFreelancerId(id);
@@ -793,16 +848,15 @@ const App = () => {
       />
 
       <AddFreelancerToCrewModal
-        isOpen={addFreelancerModalOpen}
-        onClose={() => setAddFreelancerModalOpen(false)}
+        isOpen={addFreelancerModalListId !== null}
+        onClose={() => setAddFreelancerModalListId(null)}
         freelancers={freelancers}
-        favorites={getAgencyFavorites()}
-        crewLists={getAgencyCrewLists()}
         onToggleFavorite={toggleFavorite}
         onAddToList={addToCrewList}
         onOpenChat={handleOpenChatFromCrew}
         isFavorite={isFavorite}
         getListsForFreelancer={getListsForFreelancer}
+        initialListId={addFreelancerModalListId === 'favorites' ? null : addFreelancerModalListId}
       />
     </div>
   );

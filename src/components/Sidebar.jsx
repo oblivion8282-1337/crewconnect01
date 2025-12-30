@@ -2,7 +2,6 @@ import React from 'react';
 import {
   LayoutDashboard,
   Calendar,
-  Archive,
   Briefcase,
   CheckCircle,
   User,
@@ -21,11 +20,10 @@ import { USER_ROLES } from '../constants/calendar';
  */
 const FREELANCER_NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { id: 'requests', icon: Inbox, label: 'Anfragen', showBadge: true },
-  { id: 'messages', icon: MessageCircle, label: 'Nachrichten', showMessageBadge: true },
   { id: 'projects', icon: Briefcase, label: 'Projekte' },
+  { id: 'requests', icon: Inbox, label: 'Buchungen', showBadge: true },
+  { id: 'messages', icon: MessageCircle, label: 'Nachrichten', showMessageBadge: true },
   { id: 'calendar', icon: Calendar, label: 'Kalender' },
-  { id: 'history', icon: Archive, label: 'Historie' },
   { id: 'profile', icon: User, label: 'Profil' }
 ];
 
@@ -35,11 +33,10 @@ const FREELANCER_NAV_ITEMS = [
 const AGENCY_NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'projects', icon: Briefcase, label: 'Projekte' },
-  { id: 'bookings', icon: CheckCircle, label: 'Buchungen' },
+  { id: 'bookings', icon: CheckCircle, label: 'Buchungen', showBookingsBadge: true },
   { id: 'messages', icon: MessageCircle, label: 'Nachrichten', showMessageBadge: true },
   { id: 'freelancer-search', icon: Search, label: 'Freelancer' },
   { id: 'crew', icon: Users, label: 'Meine Crew' },
-  { id: 'history', icon: Archive, label: 'Historie' },
   { id: 'profile', icon: User, label: 'Profil' }
 ];
 
@@ -52,6 +49,7 @@ const Sidebar = ({
   onViewChange,
   badgeCount = 0,
   messageBadgeCount = 0,
+  bookingsBadgeCount = 0,
   isOpen,
   onClose,
   isCollapsed,
@@ -123,9 +121,10 @@ const Sidebar = ({
               const Icon = item.icon;
               const showBadge = item.showBadge && badgeCount > 0;
               const showMessageBadge = item.showMessageBadge && messageBadgeCount > 0;
+              const showBookingsBadge = item.showBookingsBadge && bookingsBadgeCount > 0;
               const isActive = currentView === item.id;
-              const displayBadgeCount = showBadge ? badgeCount : (showMessageBadge ? messageBadgeCount : 0);
-              const hasBadge = showBadge || showMessageBadge;
+              const displayBadgeCount = showBadge ? badgeCount : (showMessageBadge ? messageBadgeCount : (showBookingsBadge ? bookingsBadgeCount : 0));
+              const hasBadge = showBadge || showMessageBadge || showBookingsBadge;
 
               return (
                 <button

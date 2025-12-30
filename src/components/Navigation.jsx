@@ -6,7 +6,8 @@ import {
   Briefcase,
   CheckCircle,
   User,
-  Inbox
+  Inbox,
+  MessageCircle
 } from 'lucide-react';
 import { USER_ROLES } from '../constants/calendar';
 
@@ -15,10 +16,10 @@ import { USER_ROLES } from '../constants/calendar';
  */
 const FREELANCER_NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { id: 'requests', icon: Inbox, label: 'Anfragen', showBadge: true },
   { id: 'projects', icon: Briefcase, label: 'Projekte' },
+  { id: 'requests', icon: Inbox, label: 'Buchungen', showBadge: true },
+  { id: 'messages', icon: MessageCircle, label: 'Nachrichten', showMessageBadge: true },
   { id: 'calendar', icon: Calendar, label: 'Kalender' },
-  { id: 'history', icon: Archive, label: 'Historie' },
   { id: 'profile', icon: User, label: 'Profil' }
 ];
 

@@ -459,6 +459,7 @@ export const ProfileSection = ({ title, children, extra }) => (
 
 /**
  * ProfileAvatar - Rundes Profilbild mit Initialen-Fallback
+ * Verwendet profileImage wenn vorhanden, sonst Initialen aus Vor-/Nachname
  */
 export const ProfileAvatar = ({
   imageUrl,
@@ -470,6 +471,7 @@ export const ProfileAvatar = ({
   const initials = `${(firstName || '')[0] || ''}${(lastName || '')[0] || ''}`.toUpperCase();
 
   const sizeClasses = {
+    xs: 'w-8 h-8 text-xs',
     sm: 'w-10 h-10 text-sm',
     md: 'w-14 h-14 text-lg',
     lg: 'w-20 h-20 text-2xl',
@@ -487,7 +489,7 @@ export const ProfileAvatar = ({
   }
 
   return (
-    <div className={`${sizeClasses[size]} rounded-full bg-primary flex items-center justify-center font-bold text-primary-foreground ${className}`}>
+    <div className={`${sizeClasses[size]} rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center font-semibold text-white ${className}`}>
       {initials || '?'}
     </div>
   );

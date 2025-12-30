@@ -158,8 +158,10 @@ export const INITIAL_FREELANCERS = [
 
     // Beruf (Array für mehrere Berufe)
     professions: ['Director of Photography (DoP)', 'Kameramann/Kamerafrau'],
-    skills: ['Steadicam', 'Drohne', 'Gimbal', 'Unterwasser'],
     experience: 12,
+
+    // Tags (vereint Skills, Equipment, Sprachen)
+    tags: ['Steadicam', 'Drohne', 'Gimbal', 'Unterwasser', 'RED Komodo', 'Sony FX6', 'DJI Ronin 4D', 'DJI Mavic 3 Pro', 'Deutsch', 'Englisch', 'Französisch'],
 
     // Kontakt
     email: 'anna.schmidt@example.de',
@@ -201,10 +203,6 @@ export const INITIAL_FREELANCERS = [
 
     // Equipment
     hasOwnEquipment: true,
-    equipment: ['RED Komodo', 'Sony FX6', 'DJI Ronin 4D', 'DJI Mavic 3 Pro'],
-
-    // Sprachen
-    languages: ['Deutsch', 'Englisch', 'Französisch'],
 
     // Portfolio
     bio: 'Seit über 12 Jahren arbeite ich als Director of Photography für Werbefilme, Dokumentationen und Spielfilme. Mein Fokus liegt auf visuell anspruchsvollen Projekten mit emotionalem Storytelling. Ich bringe mein eigenes hochwertiges Equipment mit und bin deutschlandweit sowie international verfügbar.',
@@ -233,7 +231,6 @@ export const INITIAL_FREELANCERS = [
       phone: false,
       website: true,
       socialMedia: true,
-      equipment: true,
       bio: true
     },
 
@@ -250,8 +247,10 @@ export const INITIAL_FREELANCERS = [
 
     // Beruf (Array für mehrere Berufe)
     professions: ['Editor / Cutter', 'Colorist'],
-    skills: ['Premiere Pro', 'DaVinci Resolve', 'After Effects', 'Color Grading'],
     experience: 8,
+
+    // Tags (vereint Skills, Equipment, Sprachen)
+    tags: ['Premiere Pro', 'DaVinci Resolve', 'After Effects', 'Color Grading', 'Mac Studio M2 Ultra', 'DaVinci Resolve Studio', 'Eizo ColorEdge', 'Deutsch', 'Englisch'],
 
     // Kontakt
     email: 'max.weber@example.de',
@@ -293,10 +292,6 @@ export const INITIAL_FREELANCERS = [
 
     // Equipment
     hasOwnEquipment: true,
-    equipment: ['Mac Studio M2 Ultra', 'DaVinci Resolve Studio', 'Eizo ColorEdge'],
-
-    // Sprachen
-    languages: ['Deutsch', 'Englisch'],
 
     // Portfolio
     bio: 'Als Editor und Colorist verbinde ich technische Präzision mit kreativem Storytelling. Spezialisiert auf Werbefilme und Musikvideos. Remote-Arbeit möglich.',
@@ -325,7 +320,6 @@ export const INITIAL_FREELANCERS = [
       phone: false,
       website: true,
       socialMedia: true,
-      equipment: true,
       bio: true
     },
 
@@ -342,8 +336,10 @@ export const INITIAL_FREELANCERS = [
 
     // Beruf (Array für mehrere Berufe)
     professions: ['Sound Designer', 'Tonmeister/in'],
-    skills: ['Pro Tools', 'Ableton Live', 'Field Recording', 'Foley', 'Mixing'],
     experience: 6,
+
+    // Tags (vereint Skills, Equipment, Sprachen)
+    tags: ['Pro Tools', 'Ableton Live', 'Field Recording', 'Foley', 'Mixing', 'Sound Devices MixPre-10', 'Sennheiser MKH416', 'Schoeps CMC6', 'Deutsch', 'Englisch', 'Spanisch'],
 
     // Kontakt
     email: 'sarah.mueller@example.de',
@@ -385,10 +381,6 @@ export const INITIAL_FREELANCERS = [
 
     // Equipment
     hasOwnEquipment: true,
-    equipment: ['Sound Devices MixPre-10', 'Sennheiser MKH416', 'Schoeps CMC6'],
-
-    // Sprachen
-    languages: ['Deutsch', 'Englisch', 'Spanisch'],
 
     // Portfolio
     bio: 'Sound Design und Tonaufnahme für Film, Werbung und Podcast. Von der Aufnahme am Set bis zum finalen Mix - alles aus einer Hand.',
@@ -410,7 +402,6 @@ export const INITIAL_FREELANCERS = [
       phone: true,
       website: true,
       socialMedia: true,
-      equipment: true,
       bio: true
     },
 

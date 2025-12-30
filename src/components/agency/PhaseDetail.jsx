@@ -16,7 +16,8 @@ import {
   Package,
   ZoomIn,
   ZoomOut,
-  RotateCcw
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react';
 import FreelancerSearchModal from '../modals/FreelancerSearchModal';
 import { formatDate } from '../../utils/dateUtils';
@@ -38,6 +39,7 @@ const PhaseDetail = ({
   bookings,
   freelancers,
   agencyId,
+  agencyProfile,
   getDayStatus,
   onBack,
   onBackToProjects,
@@ -52,7 +54,10 @@ const PhaseDetail = ({
   getListsForFreelancer,
   onAddToList,
   onRemoveFromList,
-  onOpenAddToListModal
+  onOpenAddToListModal,
+  // Chat Props
+  getOrCreateChat,
+  onOpenChat
 }) => {
   const [activeTab, setActiveTab] = useState('team');
   const [tasks, setTasks] = useState(phase.tasks || []);
@@ -69,6 +74,17 @@ const PhaseDetail = ({
       b.status !== BOOKING_STATUS.DECLINED &&
       b.status !== BOOKING_STATUS.WITHDRAWN &&
       b.status !== BOOKING_STATUS.CANCELLED
+    ),
+    [bookings, agencyId, project.id, phase.id]
+  );
+
+  // Stornierte Buchungen für diese Phase
+  const cancelledBookings = useMemo(() =>
+    bookings.filter(b =>
+      b.agencyId === agencyId &&
+      b.projectId === project.id &&
+      b.phaseId === phase.id &&
+      b.status === BOOKING_STATUS.CANCELLED
     ),
     [bookings, agencyId, project.id, phase.id]
   );
@@ -410,6 +426,58 @@ const PhaseDetail = ({
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Stornierte Buchungen */}
+            {cancelledBookings.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                  <h3 className="font-semibold text-red-600 dark:text-red-400">
+                    Stornierte Buchungen ({cancelledBookings.length})
+                  </h3>
+                </div>
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+                  {cancelledBookings.map(booking => {
+                    const freelancer = freelancers.find(f => f.id === booking.freelancerId);
+                    return (
+                      <div
+                        key={booking.id}
+                        className="p-3 bg-white dark:bg-gray-800 rounded-lg mb-2 last:mb-0 border border-red-100 dark:border-red-900"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xl opacity-50">
+                              {freelancer?.avatar || '👤'}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white line-through">
+                                {freelancer ? `${freelancer.firstName} ${freelancer.lastName}` : booking.freelancerName}
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {booking.dates.length} Tag{booking.dates.length !== 1 ? 'e' : ''} • {formatDate(booking.dates[0])} – {formatDate(booking.dates[booking.dates.length - 1])}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="px-2 py-1 rounded text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">
+                            Storniert
+                          </span>
+                        </div>
+                        {booking.cancelReason && (
+                          <div className="p-2 bg-red-50 dark:bg-red-900/30 rounded text-sm">
+                            <span className="font-medium text-red-800 dark:text-red-300">Grund: </span>
+                            <span className="text-red-700 dark:text-red-400">{booking.cancelReason}</span>
+                          </div>
+                        )}
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                          {booking.cancelledBy === 'freelancer' ? 'Vom Freelancer storniert' : 'Von dir storniert'}
+                          {booking.cancelledAt && ` am ${formatDate(booking.cancelledAt)}`}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -855,6 +923,7 @@ const PhaseDetail = ({
           freelancers={freelancers}
           getDayStatus={getDayStatus}
           agencyId={agencyId}
+          agencyProfile={agencyProfile}
           onBook={onBook}
           onClose={() => setShowSearch(false)}
           isFavorite={isFavorite}
@@ -864,6 +933,8 @@ const PhaseDetail = ({
           onAddToList={onAddToList}
           onRemoveFromList={onRemoveFromList}
           onOpenAddToListModal={onOpenAddToListModal}
+          getOrCreateChat={getOrCreateChat}
+          onOpenChat={onOpenChat}
         />
       )}
     </div>

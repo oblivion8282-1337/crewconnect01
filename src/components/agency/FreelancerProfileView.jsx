@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import FavoriteButton from '../shared/FavoriteButton';
 import StartChatButton from '../shared/StartChatButton';
+import { ProfileAvatar } from '../shared/ProfileField';
 import { formatDate } from '../../utils/dateUtils';
 import { isConfirmedStatus, isFixStatus, BOOKING_STATUS } from '../../constants/calendar';
 import { CALENDAR_VISIBILITY } from '../../hooks/useProfile';
@@ -178,11 +179,11 @@ const FreelancerProfileView = ({
               targetUserId={freelancer.id}
               targetUserType="freelancer"
               targetUserName={fullName}
-              targetUserAvatar={freelancer.avatar}
+              targetUserProfileImage={freelancer.profileImage}
               currentUserId={agencyId}
               currentUserType="agency"
               currentUserName={agencyProfile?.name || 'Agentur'}
-              currentUserAvatar={agencyProfile?.logo}
+              currentUserProfileImage={agencyProfile?.profileImage}
               variant="icon"
               size="md"
               onClick={onOpenChat}
@@ -204,9 +205,12 @@ const FreelancerProfileView = ({
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
         <div className="flex items-start gap-6">
           {/* Avatar */}
-          <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-accent/20 to-accent/40 flex items-center justify-center text-3xl font-bold text-gray-700 dark:text-gray-200 flex-shrink-0">
-            {freelancer.avatar || initials}
-          </div>
+          <ProfileAvatar
+            imageUrl={freelancer.profileImage}
+            firstName={freelancer.firstName}
+            lastName={freelancer.lastName}
+            size="xl"
+          />
 
           {/* Info */}
           <div className="flex-1">

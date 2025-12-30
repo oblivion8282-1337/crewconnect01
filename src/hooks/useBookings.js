@@ -340,12 +340,11 @@ export const useBookings = (freelancerId, agencyId) => {
       return { success: false, error: `Ungültiges Datumsformat: ${invalidDates.join(', ')}` };
     }
 
-    // Vergangenheit prüfen - blockiert Buchungen in der Vergangenheit
+    // Vergangenheit prüfen - nur Warnung für Demo-Zwecke
     const today = new Date().toISOString().split('T')[0];
     const pastDates = uniqueDates.filter(d => d < today);
     if (pastDates.length > 0) {
-      console.error('createBooking: Buchung enthält Vergangenheitsdaten', pastDates);
-      return { success: false, error: 'Buchungen in der Vergangenheit sind nicht möglich' };
+      console.warn('createBooking: Buchung enthält Vergangenheitsdaten (Demo-Modus erlaubt)', pastDates);
     }
 
     // RequestType validieren
@@ -599,6 +598,53 @@ export const useBookings = (freelancerId, agencyId) => {
   }, [addNotification, freelancerName, bookings, processingBookingId]);
 
   /**
+   * Storniert alle Buchungen eines Projekts (bei Projektabbruch)
+   * @param {number} projectId - Die Projekt-ID
+   * @param {string} reason - Grund für die Stornierung
+   * @returns {Object} { success: boolean, cancelledCount: number }
+   */
+  const cancelProjectBookings = useCallback((projectId, reason = 'Projekt wurde abgebrochen') => {
+    const projectBookings = bookings.filter(b =>
+      b.projectId === projectId &&
+      !isTerminalStatus(b.status)
+    );
+
+    if (projectBookings.length === 0) {
+      return { success: true, cancelledCount: 0 };
+    }
+
+    setBookings(prev => prev.map(b => {
+      if (b.projectId === projectId && !isTerminalStatus(b.status)) {
+        return {
+          ...b,
+          status: BOOKING_STATUS.CANCELLED,
+          cancelledAt: new Date().toISOString(),
+          cancelledBy: 'agency',
+          cancelReason: reason
+        };
+      }
+      return b;
+    }));
+
+    // Benachrichtige alle betroffenen Freelancer
+    const notifiedFreelancers = new Set();
+    projectBookings.forEach(booking => {
+      if (!notifiedFreelancers.has(booking.freelancerId)) {
+        notifiedFreelancers.add(booking.freelancerId);
+        addNotification(
+          'freelancer',
+          'cancelled',
+          'Projekt abgebrochen ⚠️',
+          `Das Projekt "${booking.projectName}" wurde abgebrochen. Alle deine Buchungen wurden storniert.`,
+          booking.id
+        );
+      }
+    });
+
+    return { success: true, cancelledCount: projectBookings.length };
+  }, [bookings, addNotification]);
+
+  /**
    * Wandelt bestätigte Option in Fixbuchung um
    * KEINE erneute Bestätigung nötig!
    * @returns {Object} { success: boolean, error?: string }
@@ -631,8 +677,8 @@ export const useBookings = (freelancerId, agencyId) => {
       addNotification(
         'freelancer',
         'option_to_fix',
-        'Option wurde gefixt ✓',
-        `${booking.agencyName} hat "${booking.projectName}" fix gebucht`,
+        'Option zu Fix umgewandelt ✓',
+        `${booking.agencyName} hat "${booking.projectName}" fest gebucht`,
         booking.id
       );
 
@@ -927,6 +973,7 @@ export const useBookings = (freelancerId, agencyId) => {
     declineBooking,
     withdrawBooking,
     cancelBooking,
+    cancelProjectBookings,
     convertOptionToFix,
     createBooking,
     declineOverlappingBookings,

@@ -2,8 +2,10 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import {
   Search, MapPin, Globe, Laptop, Star, Heart,
   ChevronDown, ChevronUp, X, Mail, Phone, ExternalLink,
-  Calendar, Users, Euro, Briefcase, Check, CheckSquare, Square
+  Calendar, Users, Euro, Briefcase, Check, CheckSquare, Square,
+  PackageCheck, BadgeCheck, MessageCircle
 } from 'lucide-react';
+import { ProfileAvatar } from '../shared/ProfileField';
 
 /**
  * Durchsuchbares Single-Select Dropdown
@@ -285,7 +287,7 @@ const MultiSearchableSelect = ({ values = [], onChange, options, placeholder, ta
   );
 };
 import { formatDateShort, getDateRange, parseLocalDate } from '../../utils/dateUtils';
-import { PROFESSIONS, SKILLS, EQUIPMENT } from '../../constants/profileOptions';
+import { PROFESSIONS, TAGS } from '../../constants/profileOptions';
 import DateRangePicker from '../shared/DateRangePicker';
 import ResizableModal from '../shared/ResizableModal';
 import FavoriteButton from '../shared/FavoriteButton';
@@ -300,6 +302,7 @@ const FreelancerSearchModal = ({
   freelancers,
   getDayStatus,
   agencyId,
+  agencyProfile,
   onBook,
   onClose,
   // Favoriten & Crew-Listen Props
@@ -309,7 +312,10 @@ const FreelancerSearchModal = ({
   getListsForFreelancer,
   onAddToList,
   onRemoveFromList,
-  onOpenAddToListModal
+  onOpenAddToListModal,
+  // Chat Props
+  getOrCreateChat,
+  onOpenChat
 }) => {
   // Prüfe ob Phase Datum hat
   const phaseHasDates = phase.startDate && phase.endDate;
@@ -318,8 +324,7 @@ const FreelancerSearchModal = ({
   const [filters, setFilters] = useState({
     name: '',
     profession: '',
-    skills: [],
-    equipment: [],
+    tags: [],
     city: '',
     country: '',
     radius: 50,
@@ -345,6 +350,9 @@ const FreelancerSearchModal = ({
 
   // Confirmation Modal State
   const [confirmationModal, setConfirmationModal] = useState(null);
+
+  // Profil-Ansicht Modal State
+  const [viewingProfile, setViewingProfile] = useState(null);
 
   // Datumsbereich: entweder aus Phase oder custom
   const effectiveStartDate = phaseHasDates ? phase.startDate : customDateRange.startDate;
@@ -416,28 +424,16 @@ const FreelancerSearchModal = ({
         if (!freelancer.professions?.includes(filters.profession)) return false;
       }
 
-      // Skills Filter (mehrere Skills, alle müssen matchen)
-      if (filters.skills.length > 0) {
-        const freelancerSkills = freelancer.skills || [];
-        const allSkillsMatch = filters.skills.every(filterSkill => {
-          const searchTerm = filterSkill.toLowerCase();
-          return freelancerSkills.some(skill =>
-            skill.toLowerCase().includes(searchTerm)
+      // Tags Filter (mehrere Tags, alle müssen matchen)
+      if (filters.tags.length > 0) {
+        const freelancerTags = freelancer.tags || [];
+        const allTagsMatch = filters.tags.every(filterTag => {
+          const searchTerm = filterTag.toLowerCase();
+          return freelancerTags.some(tag =>
+            tag.toLowerCase().includes(searchTerm)
           );
         });
-        if (!allSkillsMatch) return false;
-      }
-
-      // Equipment Filter (mehrere Equipment-Items, alle müssen matchen)
-      if (filters.equipment.length > 0) {
-        const freelancerEquipment = freelancer.equipment || [];
-        const allEquipmentMatch = filters.equipment.every(filterEquip => {
-          const searchTerm = filterEquip.toLowerCase();
-          return freelancerEquipment.some(item =>
-            item.toLowerCase().includes(searchTerm)
-          );
-        });
-        if (!allEquipmentMatch) return false;
+        if (!allTagsMatch) return false;
       }
 
       // Stadt Filter
@@ -544,9 +540,10 @@ const FreelancerSearchModal = ({
   }, [selectedFreelancer, calculateAvailability]);
 
   // Öffnet das Bestätigungs-Modal
-  const handleOpenConfirmation = (rateInfo) => {
+  const handleOpenConfirmation = (freelancer, rateInfo) => {
+    if (!freelancer) return;
     setConfirmationModal({
-      freelancer: selectedFreelancer,
+      freelancer,
       selectedDays,
       bookingType,
       project,
@@ -566,8 +563,7 @@ const FreelancerSearchModal = ({
     setFilters({
       name: '',
       profession: '',
-      skills: [],
-      equipment: [],
+      tags: [],
       city: '',
       country: '',
       radius: 50,
@@ -687,34 +683,22 @@ const FreelancerSearchModal = ({
               />
             </div>
 
-            {/* Skills */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Skills</label>
+            {/* Tags (Skills, Equipment, Sprachen) */}
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tags</label>
               <MultiSearchableSelect
-                values={filters.skills}
-                onChange={(vals) => setFilters({ ...filters, skills: vals })}
-                options={SKILLS}
-                placeholder="Skills suchen..."
-                tagColorClass="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-              />
-            </div>
-
-            {/* Equipment */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Equipment</label>
-              <MultiSearchableSelect
-                values={filters.equipment}
-                onChange={(vals) => setFilters({ ...filters, equipment: vals })}
-                options={EQUIPMENT}
-                placeholder="Equipment suchen..."
-                tagColorClass="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
+                values={filters.tags}
+                onChange={(vals) => setFilters({ ...filters, tags: vals })}
+                options={TAGS}
+                placeholder="Skills, Equipment, Sprachen..."
+                tagColorClass="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
               />
             </div>
           </div>
 
-          {/* Zweite Zeile: Stadt, Land & Toggle-Filter */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 items-end">
-            {/* Stadt */}
+          {/* Zweite Zeile: Stadt, Land, Radius & Toggle-Filter */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            {/* Stadt - gleiche Breite wie Name */}
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Stadt</label>
               <div className="relative">
@@ -729,7 +713,7 @@ const FreelancerSearchModal = ({
               </div>
             </div>
 
-            {/* Land */}
+            {/* Land - gleiche Breite wie Berufsfeld */}
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Land</label>
               <div className="relative">
@@ -744,30 +728,32 @@ const FreelancerSearchModal = ({
               </div>
             </div>
 
-            {/* Radius */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                Radius: {filters.radius}km
-              </label>
-              <div className="h-[38px] flex items-center">
-                <input
-                  type="range"
-                  min="10"
-                  max="500"
-                  step="10"
-                  value={filters.radius}
-                  onChange={(e) => setFilters({ ...filters, radius: parseInt(e.target.value) })}
-                  className="w-full accent-primary h-2 cursor-pointer"
-                />
+            {/* Radius + Filter - zusammen gleiche Breite wie Tags (col-span-2) */}
+            <div className="col-span-2 flex gap-3 items-end">
+              {/* Radius - schrumpft bei schmalem Fenster */}
+              <div className="flex-1 min-w-16">
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Radius: {filters.radius}km
+                </label>
+                <div className="h-[38px] flex items-center">
+                  <input
+                    type="range"
+                    min="10"
+                    max="500"
+                    step="10"
+                    value={filters.radius}
+                    onChange={(e) => setFilters({ ...filters, radius: parseInt(e.target.value) })}
+                    className="w-full accent-primary h-2 cursor-pointer"
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Toggle-Filter - gleiches Styling wie Input-Felder */}
-            <div className="min-w-0">
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Filter</label>
-              <div className="min-h-[38px] px-2 flex items-center justify-between border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+              {/* Toggle-Filter - fixe Breite */}
+              <div className="w-80 shrink-0">
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Filter</label>
+                <div className="min-h-[38px] px-3 flex items-center gap-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
                 {/* Remote */}
-                <label className="flex items-center gap-1 cursor-pointer" title="Nur Remote-Freelancer anzeigen">
+                <label className="flex items-center gap-1.5 cursor-pointer">
                   <div className="relative">
                     <input
                       type="checkbox"
@@ -783,11 +769,11 @@ const FreelancerSearchModal = ({
                       }`} />
                     </div>
                   </div>
-                  <span className="text-[11px] text-gray-600 dark:text-gray-400">Remote</span>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Remote-Arbeit</span>
                 </label>
 
                 {/* 100% Verfügbar */}
-                <label className="flex items-center gap-1 cursor-pointer" title="Nur 100% verfügbare Freelancer anzeigen">
+                <label className="flex items-center gap-1.5 cursor-pointer">
                   <div className="relative">
                     <input
                       type="checkbox"
@@ -803,11 +789,11 @@ const FreelancerSearchModal = ({
                       }`} />
                     </div>
                   </div>
-                  <span className="text-[11px] text-gray-600 dark:text-gray-400">100%</span>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">100% verfügbar</span>
                 </label>
 
                 {/* Favoriten */}
-                <label className="flex items-center gap-1 cursor-pointer" title="Nur Favoriten anzeigen">
+                <label className="flex items-center gap-1.5 cursor-pointer">
                   <div className="relative">
                     <input
                       type="checkbox"
@@ -823,8 +809,9 @@ const FreelancerSearchModal = ({
                       }`} />
                     </div>
                   </div>
-                  <Heart className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Nur Favoriten</span>
                 </label>
+                </div>
               </div>
             </div>
           </div>
@@ -881,6 +868,14 @@ const FreelancerSearchModal = ({
                   onTypeChange={setBookingType}
                   onSubmit={handleOpenConfirmation}
                   calculateAvailability={calculateAvailability}
+                  onViewProfile={setViewingProfile}
+                  agencyId={agencyId}
+                  agencyProfile={agencyProfile}
+                  getOrCreateChat={getOrCreateChat}
+                  onOpenChat={(chatId) => {
+                    onClose();
+                    onOpenChat(chatId);
+                  }}
                 />
               ))}
             </div>
@@ -899,6 +894,175 @@ const FreelancerSearchModal = ({
           onConfirm={handleConfirmBooking}
           onCancel={() => setConfirmationModal(null)}
         />
+      )}
+
+      {/* Profil-Modal */}
+      {viewingProfile && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setViewingProfile(null)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between z-10">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Freelancer-Profil</h2>
+              <div className="flex items-center gap-2">
+                {/* Chat starten */}
+                <button
+                  onClick={() => {
+                    if (getOrCreateChat && onOpenChat) {
+                      const chat = getOrCreateChat(
+                        agencyId,
+                        agencyProfile?.name || 'Agentur',
+                        agencyProfile?.profileImage || null,
+                        viewingProfile.id,
+                        `${viewingProfile.firstName} ${viewingProfile.lastName}`,
+                        viewingProfile.profileImage || null
+                      );
+                      onClose(); // Modal schließen
+                      onOpenChat(chat.id); // Zu Nachrichten navigieren
+                    }
+                  }}
+                  className="p-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors group"
+                  title="Chat starten"
+                >
+                  <MessageCircle className="w-5 h-5 text-gray-500 group-hover:text-blue-500" />
+                </button>
+                {/* Favorit */}
+                <button
+                  onClick={() => {
+                    onToggleFavorite(viewingProfile.id);
+                  }}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isFavorite?.(viewingProfile.id)
+                      ? 'bg-red-100 dark:bg-red-900/30 text-red-500'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-red-500'
+                  }`}
+                  title={isFavorite?.(viewingProfile.id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                >
+                  <Heart className={`w-5 h-5 ${isFavorite?.(viewingProfile.id) ? 'fill-current' : ''}`} />
+                </button>
+                {/* Schließen */}
+                <button
+                  onClick={() => setViewingProfile(null)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Schließen"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            {/* Profil-Inhalt */}
+            <div className="p-6">
+              {/* Header mit Avatar und Name */}
+              <div className="flex items-start gap-4 mb-6">
+                <ProfileAvatar
+                  imageUrl={viewingProfile.profileImage}
+                  firstName={viewingProfile.firstName}
+                  lastName={viewingProfile.lastName}
+                  size="xl"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                      {viewingProfile.firstName} {viewingProfile.lastName}
+                    </h3>
+                    {viewingProfile.verified && (
+                      <BadgeCheck className="w-5 h-5 text-blue-500" title="Verifiziertes Profil" />
+                    )}
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {(viewingProfile.professions || []).join(' / ')}
+                  </p>
+                  <div className="flex items-center gap-4 mt-2 text-sm">
+                    <span className="flex items-center gap-1 text-yellow-500">
+                      <Star className="w-4 h-4 fill-current" />
+                      {viewingProfile.rating}
+                    </span>
+                    {viewingProfile.experience && (
+                      <span className="text-gray-500 dark:text-gray-400">
+                        {viewingProfile.experience} Jahre Erfahrung
+                      </span>
+                    )}
+                    {viewingProfile.dayRate && viewingProfile.visibility?.dayRate !== false && (
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        {viewingProfile.dayRate}€/Tag
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Standort & Remote */}
+              <div className="flex flex-wrap gap-3 mb-6">
+                {viewingProfile.address?.city && viewingProfile.visibility?.address !== false && (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-full text-sm text-gray-700 dark:text-gray-300">
+                    <MapPin className="w-4 h-4" />
+                    {viewingProfile.address.city}, {viewingProfile.address.country}
+                  </span>
+                )}
+                {viewingProfile.remoteWork && (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 rounded-full text-sm text-green-700 dark:text-green-400">
+                    <Laptop className="w-4 h-4" />
+                    Remote-Arbeit möglich
+                  </span>
+                )}
+                {viewingProfile.hasOwnEquipment && (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-sm text-emerald-700 dark:text-emerald-400">
+                    <PackageCheck className="w-4 h-4" />
+                    Eigenes Equipment
+                  </span>
+                )}
+              </div>
+
+              {/* Bio */}
+              {viewingProfile.bio && viewingProfile.visibility?.bio !== false && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Über mich</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{viewingProfile.bio}</p>
+                </div>
+              )}
+
+              {/* Tags */}
+              {(viewingProfile.tags || []).length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Tags</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewingProfile.tags.map(tag => (
+                      <span key={tag} className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Kontakt */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Kontakt</h4>
+                <div className="flex flex-wrap gap-4 text-sm">
+                  {viewingProfile.email && viewingProfile.visibility?.email !== false && (
+                    <a href={`mailto:${viewingProfile.email}`} className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 hover:underline">
+                      <Mail className="w-4 h-4" />
+                      {viewingProfile.email}
+                    </a>
+                  )}
+                  {viewingProfile.phone && viewingProfile.visibility?.phone !== false && (
+                    <a href={`tel:${viewingProfile.phone}`} className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 hover:underline">
+                      <Phone className="w-4 h-4" />
+                      {viewingProfile.phone}
+                    </a>
+                  )}
+                  {viewingProfile.website && viewingProfile.visibility?.website !== false && (
+                    <a href={viewingProfile.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 hover:underline">
+                      <Globe className="w-4 h-4" />
+                      Website
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </ResizableModal>
   );
@@ -964,15 +1128,19 @@ const FreelancerResultCard = ({
   onToggleWeekends,
   onTypeChange,
   onSubmit,
-  calculateAvailability
+  calculateAvailability,
+  onViewProfile,
+  // Chat Props
+  agencyId,
+  agencyProfile,
+  getOrCreateChat,
+  onOpenChat
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [rateType, setRateType] = useState('daily'); // 'daily' oder 'flat'
   const [customDayRate, setCustomDayRate] = useState(freelancer.dayRate || 0);
   const [flatRate, setFlatRate] = useState(0);
-  const [skillsContainerRef, setSkillsContainerRef] = useState(null);
-  const [visibleSkills, setVisibleSkills] = useState(6);
-  const [visibleEquipment, setVisibleEquipment] = useState(4);
+  const [visibleTags, setVisibleTags] = useState(10);
 
   const isSelected = selectedFreelancer?.id === freelancer.id;
   const showBookingOptions = selectedDays.length > 0 && isSelected;
@@ -1014,13 +1182,8 @@ const FreelancerResultCard = ({
 
   const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
-  // Skills und Equipment mit Overflow-Handling
-  const allSkills = freelancer.skills || [];
-  const allEquipment = (visibility.equipment !== false ? freelancer.equipment : null) || [];
-  const displayedSkills = allSkills.slice(0, visibleSkills);
-  const hiddenSkills = allSkills.slice(visibleSkills);
-  const displayedEquipment = allEquipment.slice(0, visibleEquipment);
-  const hiddenEquipment = allEquipment.slice(visibleEquipment);
+  // Tags
+  const allTags = freelancer.tags || [];
 
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-lg border transition-all ${
@@ -1029,14 +1192,34 @@ const FreelancerResultCard = ({
       {/* Kompakter Header */}
       <div className="p-3">
         <div className="flex items-start gap-3">
-          {/* Avatar */}
-          <div className="text-3xl flex-shrink-0">{freelancer.avatar}</div>
+          {/* Avatar - klickbar für Profil */}
+          <button
+            onClick={() => onViewProfile(freelancer)}
+            className="flex-shrink-0 hover:scale-105 transition-transform cursor-pointer"
+            title="Profil ansehen"
+          >
+            <ProfileAvatar
+              imageUrl={freelancer.profileImage}
+              firstName={freelancer.firstName}
+              lastName={freelancer.lastName}
+              size="md"
+            />
+          </button>
 
           {/* Haupt-Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-gray-900 dark:text-white">{fullName}</h3>
-              {freelancer.verified && <span className="text-blue-500 text-sm">✓</span>}
+              <button
+                onClick={() => onViewProfile(freelancer)}
+                className="font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+              >
+                {fullName}
+              </button>
+              {freelancer.verified && (
+                <span className="text-blue-500" title="Verifiziertes Profil – Identität wurde überprüft">
+                  <BadgeCheck className="w-4 h-4" />
+                </span>
+              )}
               <FavoriteButton
                 freelancerId={freelancer.id}
                 isFavorite={isFavorite}
@@ -1049,58 +1232,31 @@ const FreelancerResultCard = ({
                 size="sm"
               />
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPercentageColor(availability.percentage)}`}>
-                {availability.percentage}%
+                {availability.percentage}% verfügbar
               </span>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{(freelancer.professions || []).join(', ')}</p>
 
             {/* Meta-Info Zeile */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {visibility.dayRate !== false && freelancer.dayRate && (
-                <span className="font-semibold text-gray-700 dark:text-gray-300">{freelancer.dayRate}€/Tag</span>
-              )}
-              <span className="flex items-center gap-0.5 text-yellow-500">
-                <Star className="w-3 h-3 fill-current" />{freelancer.rating}
-              </span>
               {visibility.address !== false && freelancer.address?.city && (
                 <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{freelancer.address.city}</span>
               )}
               {freelancer.remoteWork && (
                 <span className="flex items-center gap-0.5 text-green-600 dark:text-green-400"><Laptop className="w-3 h-3" />Remote</span>
               )}
-              {freelancer.experience && (
-                <span>{freelancer.experience}J Erfahrung</span>
-              )}
             </div>
 
-            {/* Skills & Equipment - so viele wie möglich + Info-Icon für Rest */}
-            {(allSkills.length > 0 || allEquipment.length > 0) && (
-              <div className="flex flex-wrap items-center gap-1 mt-2">
-                {displayedSkills.map(skill => (
-                  <span key={skill} className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-[10px]">
-                    {skill}
-                  </span>
-                ))}
-                {hiddenSkills.length > 0 && (
-                  <OverflowInfo
-                    items={hiddenSkills}
-                    label={`+${hiddenSkills.length} weitere Skills`}
-                    colorClass="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                  />
-                )}
-                {displayedEquipment.map(item => (
-                  <span key={item} className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded text-[10px]">
-                    {item}
-                  </span>
-                ))}
-                {hiddenEquipment.length > 0 && (
-                  <OverflowInfo
-                    items={hiddenEquipment}
-                    label={`+${hiddenEquipment.length} weiteres Equipment`}
-                    colorClass="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
-                  />
-                )}
-              </div>
+          </div>
+
+          {/* Bewertung & Tagesgage - rechts oben */}
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+            <span className="flex items-center gap-1 text-yellow-500">
+              <Star className="w-4 h-4 fill-current" />
+              <span className="text-sm font-semibold">{freelancer.rating}</span>
+            </span>
+            {visibility.dayRate !== false && freelancer.dayRate && (
+              <span className="text-sm font-bold text-gray-900 dark:text-white">{freelancer.dayRate}€<span className="text-xs font-normal text-gray-500 dark:text-gray-400">/Tag</span></span>
             )}
           </div>
 
@@ -1185,41 +1341,78 @@ const FreelancerResultCard = ({
 
         {/* Selection Info + Expand Button */}
         <div className="flex items-center justify-between mt-2">
-          {selectedCount > 0 ? (
-            <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-              {selectedCount} Tag{selectedCount !== 1 ? 'e' : ''} ausgewählt
-            </div>
-          ) : (
-            <div />
-          )}
-
-          {/* Aufklapp-Button für Profildetails */}
+          {/* Aufklapp-Button für Profildetails - links */}
           <button
             onClick={() => setExpanded(!expanded)}
             className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
           >
-            <span>{expanded ? 'Weniger anzeigen' : 'Mehr Details'}</span>
             {expanded ? (
               <ChevronUp className="w-4 h-4" />
             ) : (
               <ChevronDown className="w-4 h-4" />
             )}
+            <span>{expanded ? 'Weniger anzeigen' : 'Mehr Details'}</span>
           </button>
+
+          {/* Rechte Seite: Selected Count + Chat */}
+          <div className="flex items-center gap-3">
+            {selectedCount > 0 && (
+              <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                {selectedCount} Tag{selectedCount !== 1 ? 'e' : ''} ausgewählt
+              </div>
+            )}
+            {/* Chat Button */}
+            <button
+              onClick={() => {
+                if (getOrCreateChat && onOpenChat) {
+                  const chat = getOrCreateChat(
+                    agencyId,
+                    agencyProfile?.name || 'Agentur',
+                    agencyProfile?.profileImage || null,
+                    freelancer.id,
+                    `${freelancer.firstName} ${freelancer.lastName}`,
+                    freelancer.profileImage || null
+                  );
+                  onOpenChat(chat.id);
+                }
+              }}
+              className="flex items-center gap-1 px-2 py-1 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors group"
+              title="Chat starten"
+            >
+              <MessageCircle className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
+              <span className="text-xs text-gray-400 group-hover:text-blue-500">Chat</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Erweiterte Infos - ohne Skills/Equipment Tags */}
+      {/* Erweiterte Infos */}
       {expanded && (
         <div className="px-3 pb-3 pt-1 border-t border-gray-100 dark:border-gray-700 space-y-2">
+          {/* Erfahrung & Equipment */}
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            {freelancer.experience && (
+              <span className="text-gray-600 dark:text-gray-400">
+                <span className="font-medium">{freelancer.experience} Jahre</span> Erfahrung
+              </span>
+            )}
+            {freelancer.hasOwnEquipment && (
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400" title="Bringt eigenes professionelles Equipment mit">
+                <PackageCheck className="w-3.5 h-3.5" />
+                <span>Eigenes Equipment</span>
+              </span>
+            )}
+          </div>
           {visibility.bio !== false && freelancer.bio && (
             <p className="text-xs text-gray-600 dark:text-gray-400">{freelancer.bio}</p>
           )}
-          {/* Sprachen */}
-          {freelancer.languages?.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">Sprachen:</span>
-              {freelancer.languages.map(lang => (
-                <span key={lang} className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-[10px]">{lang}</span>
+          {/* Tags */}
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1">
+              {allTags.map(tag => (
+                <span key={tag} className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-[10px]">
+                  {tag}
+                </span>
               ))}
             </div>
           )}
@@ -1346,7 +1539,7 @@ const FreelancerResultCard = ({
             </div>
 
             <button
-              onClick={() => onSubmit({ rateType, dayRate: customDayRate, flatRate, totalCost })}
+              onClick={() => onSubmit(freelancer, { rateType, dayRate: customDayRate, flatRate, totalCost })}
               disabled={totalCost <= 0}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >

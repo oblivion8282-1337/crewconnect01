@@ -16,10 +16,10 @@ const INITIAL_CHATS = [
     id: 'chat-1',
     agencyId: 1,
     agencyName: 'Bluescreen Productions',
-    agencyLogo: '🎬',
+    agencyProfileImage: null,
     freelancerId: 1,
     freelancerName: 'Anna Schmidt',
-    freelancerAvatar: '👩‍🎨',
+    freelancerProfileImage: null,
     lastMessageAt: '2025-01-28T14:30:00Z',
     unreadCountAgency: 1,
     unreadCountFreelancer: 0,
@@ -51,10 +51,10 @@ const INITIAL_CHATS = [
     id: 'chat-2',
     agencyId: 1,
     agencyName: 'Bluescreen Productions',
-    agencyLogo: '🎬',
+    agencyProfileImage: null,
     freelancerId: 2,
     freelancerName: 'Max Weber',
-    freelancerAvatar: '👨‍💻',
+    freelancerProfileImage: null,
     lastMessageAt: '2025-01-27T16:00:00Z',
     unreadCountAgency: 0,
     unreadCountFreelancer: 0,
@@ -109,7 +109,7 @@ export const useMessages = () => {
   /**
    * Chat finden oder erstellen
    */
-  const getOrCreateChat = useCallback((agencyId, agencyName, agencyLogo, freelancerId, freelancerName, freelancerAvatar) => {
+  const getOrCreateChat = useCallback((agencyId, agencyName, agencyProfileImage, freelancerId, freelancerName, freelancerProfileImage) => {
     // Suche bestehenden Chat
     const existingChat = chats.find(c =>
       c.agencyId === agencyId && c.freelancerId === freelancerId
@@ -125,10 +125,10 @@ export const useMessages = () => {
       id: generateId('chat'),
       agencyId,
       agencyName,
-      agencyLogo: agencyLogo || '🏢',
+      agencyProfileImage: agencyProfileImage || null,
       freelancerId,
       freelancerName,
-      freelancerAvatar: freelancerAvatar || '👤',
+      freelancerProfileImage: freelancerProfileImage || null,
       lastMessageAt: now,
       unreadCountAgency: 0,
       unreadCountFreelancer: 0,

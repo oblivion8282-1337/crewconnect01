@@ -67,9 +67,10 @@ export const PROFESSIONS = [
 ];
 
 /**
- * Skills / Spezialisierungen
+ * Tags - Vereinte Liste aus Skills, Equipment und Sprachen
+ * Alle Fähigkeiten, Ausrüstung und Sprachkenntnisse in einer Liste
  */
-export const SKILLS = [
+export const TAGS = [
   // Kamera-Skills
   'Steadicam',
   'Gimbal',
@@ -132,13 +133,8 @@ export const SKILLS = [
   'Mehrsprachig',
   'Remote-Arbeit',
   'Internationale Projekte',
-  'Führungserfahrung'
-];
+  'Führungserfahrung',
 
-/**
- * Equipment-Kategorien und gängige Geräte
- */
-export const EQUIPMENT = [
   // Kameras
   'ARRI Alexa Mini',
   'ARRI Alexa 35',
@@ -172,7 +168,6 @@ export const EQUIPMENT = [
   'DJI Ronin 4D',
   'DJI RS 3 Pro',
   'Freefly MōVI Pro',
-  'Steadicam',
   'Easyrig',
   'Slider',
   'Stativ (Sachtler)',
@@ -197,7 +192,7 @@ export const EQUIPMENT = [
   'HMI 1.2kW',
   'HMI 4kW',
 
-  // Ton
+  // Ton-Equipment
   'Sound Devices MixPre-10',
   'Sound Devices 833',
   'Zoom F8n Pro',
@@ -218,15 +213,36 @@ export const EQUIPMENT = [
   'TVLogic',
   'Teradek Bolt',
 
-  // Post-Production
+  // Post-Production Equipment
   'Mac Studio M2 Ultra',
   'Mac Pro',
   'DaVinci Resolve Studio',
   'Eizo ColorEdge',
   'Blackmagic DeckLink',
   'RAID Storage',
-  'LTO Archiv'
+  'LTO Archiv',
+
+  // Sprachen
+  'Deutsch',
+  'Englisch',
+  'Französisch',
+  'Spanisch',
+  'Italienisch',
+  'Portugiesisch',
+  'Niederländisch',
+  'Polnisch',
+  'Russisch',
+  'Türkisch',
+  'Arabisch',
+  'Chinesisch',
+  'Japanisch',
+  'Koreanisch'
 ];
+
+// Legacy exports für Rückwärtskompatibilität (deprecated)
+export const SKILLS = TAGS;
+export const EQUIPMENT = TAGS;
+export const LANGUAGES = TAGS;
 
 /**
  * Portfolio-Kategorien
@@ -268,26 +284,6 @@ export const VISIBILITY_OPTIONS = [
   { key: 'phone', label: 'Telefonnummer' },
   { key: 'website', label: 'Website' },
   { key: 'socialMedia', label: 'Social Media' },
-  { key: 'equipment', label: 'Equipment' },
   { key: 'bio', label: 'Über mich' }
 ];
 
-/**
- * Sprachen
- */
-export const LANGUAGES = [
-  'Deutsch',
-  'Englisch',
-  'Französisch',
-  'Spanisch',
-  'Italienisch',
-  'Portugiesisch',
-  'Niederländisch',
-  'Polnisch',
-  'Russisch',
-  'Türkisch',
-  'Arabisch',
-  'Chinesisch',
-  'Japanisch',
-  'Koreanisch'
-];

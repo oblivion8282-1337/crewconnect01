@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Euro,
   Calendar,
@@ -9,7 +9,9 @@ import {
   AlertTriangle,
   CheckCircle,
   CalendarDays,
-  Wallet
+  Wallet,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import StatusBadge from '../shared/StatusBadge';
 import { formatDate, getDaysInMonth, createDateKey } from '../../utils/dateUtils';
@@ -31,6 +33,7 @@ const FreelancerHomeDashboard = ({
   freelancerId,
   freelancerProfile,
   currentDate,
+  getDayStatus,
   onAccept,
   onDecline,
   onCancel,
@@ -40,8 +43,10 @@ const FreelancerHomeDashboard = ({
   onViewAllRequests
 }) => {
   const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
+  // Use currentDate for calendar sync (demo mode uses Jan 2025), fallback to now
+  const calendarDate = currentDate || now;
+  const currentMonth = calendarDate.getMonth();
+  const currentYear = calendarDate.getFullYear();
 
   // Alle Buchungen für diesen Freelancer
   const myBookings = useMemo(() =>
@@ -228,10 +233,12 @@ const FreelancerHomeDashboard = ({
         {/* Mini Calendar & Upcoming */}
         <div className="lg:col-span-2 space-y-6">
           <MiniCalendar
-            bookings={myBookings}
+            getDayStatus={getDayStatus}
+            freelancerId={freelancerId}
             year={currentYear}
             month={currentMonth}
             onViewCalendar={onViewCalendar}
+            bookings={bookings}
           />
 
           {/* Nächste Termine */}
@@ -596,43 +603,91 @@ const UpcomingCard = ({ booking }) => {
 };
 
 /**
- * Mini Calendar
+ * Mini Calendar - uses getDayStatus for consistent day coloring
  */
-const MiniCalendar = ({ bookings, year, month, onViewCalendar }) => {
-  const daysInMonth = getDaysInMonth(year, month);
-  const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
+const MiniCalendar = ({ getDayStatus, freelancerId, year: initialYear, month: initialMonth, onViewCalendar, bookings }) => {
+  const [displayMonth, setDisplayMonth] = useState(initialMonth);
+  const [displayYear, setDisplayYear] = useState(initialYear);
 
+  const daysInMonth = getDaysInMonth(displayYear, displayMonth);
+  const firstDay = (new Date(displayYear, displayMonth, 1).getDay() + 6) % 7;
+
+  const goToPrevMonth = () => {
+    if (displayMonth === 0) {
+      setDisplayMonth(11);
+      setDisplayYear(displayYear - 1);
+    } else {
+      setDisplayMonth(displayMonth - 1);
+    }
+  };
+
+  const goToNextMonth = () => {
+    if (displayMonth === 11) {
+      setDisplayMonth(0);
+      setDisplayYear(displayYear + 1);
+    } else {
+      setDisplayMonth(displayMonth + 1);
+    }
+  };
+
+  const goToToday = () => {
+    const now = new Date();
+    setDisplayMonth(now.getMonth());
+    setDisplayYear(now.getFullYear());
+  };
+
+  // Use getDayStatus for consistent coloring with the main calendar
+  // Include bookings in deps to trigger re-render when bookings change
   const dayStatuses = useMemo(() => {
     const statuses = {};
     for (let day = 1; day <= daysInMonth; day++) {
-      const dateKey = createDateKey(year, month, day);
-      const dayBookings = bookings.filter(b => b.dates.includes(dateKey));
-
-      if (dayBookings.length === 0) {
-        statuses[day] = 'available';
-      } else {
-        const hasFix = dayBookings.some(b => b.status === BOOKING_STATUS.FIX_CONFIRMED);
-        const hasOption = dayBookings.some(b => b.status === BOOKING_STATUS.OPTION_CONFIRMED);
-        const hasPending = dayBookings.some(b => isPendingStatus(b.status));
-
-        if (hasFix) statuses[day] = 'fix';
-        else if (hasOption) statuses[day] = 'option';
-        else if (hasPending) statuses[day] = 'pending';
-        else statuses[day] = 'available';
-      }
+      const dateKey = createDateKey(displayYear, displayMonth, day);
+      const status = getDayStatus(freelancerId, dateKey);
+      statuses[day] = status.color; // getDayStatus returns { color: 'green'|'purple'|'yellow'|'red'|'striped', ... }
     }
     return statuses;
-  }, [bookings, year, month, daysInMonth]);
+  }, [getDayStatus, freelancerId, displayYear, displayMonth, daysInMonth, bookings]);
 
   const today = new Date();
-  const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
+  const isCurrentMonth = today.getMonth() === displayMonth && today.getFullYear() === displayYear;
   const currentDay = today.getDate();
-  const monthName = new Date(year, month).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+  const monthName = new Date(displayYear, displayMonth).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+
+  // Map getDayStatus colors to CSS classes
+  const colorClasses = {
+    green: 'bg-green-500 text-white',
+    purple: 'bg-purple-500 text-white',
+    yellow: 'bg-yellow-400 text-gray-800',
+    red: 'bg-red-500 text-white',
+    striped: 'bg-[length:8px_8px] bg-[linear-gradient(135deg,#ef4444_25%,#22c55e_25%,#22c55e_50%,#ef4444_50%,#ef4444_75%,#22c55e_75%)] text-white'
+  };
 
   return (
     <div className="p-6 rounded-card bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="font-semibold text-gray-900 dark:text-white">{monthName}</h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={goToPrevMonth}
+            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <h3 className="font-semibold text-gray-900 dark:text-white min-w-[140px] text-center">{monthName}</h3>
+          <button
+            onClick={goToNextMonth}
+            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+          {!isCurrentMonth && (
+            <button
+              onClick={goToToday}
+              className="text-caption text-primary hover:underline ml-2"
+            >
+              Heute
+            </button>
+          )}
+        </div>
         {onViewCalendar && (
           <button onClick={onViewCalendar} className="text-caption text-primary hover:underline">
             Vollansicht <ArrowRight className="inline w-3 h-3" />
@@ -655,22 +710,15 @@ const MiniCalendar = ({ bookings, year, month, onViewCalendar }) => {
 
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1;
-          const status = dayStatuses[day];
+          const color = dayStatuses[day] || 'green';
           const isToday = isCurrentMonth && day === currentDay;
-
-          const colorClasses = {
-            available: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
-            pending: 'bg-purple-500 text-white',
-            option: 'bg-yellow-400 text-gray-800',
-            fix: 'bg-red-500 text-white'
-          };
 
           return (
             <div
               key={day}
               className={`
                 aspect-square flex items-center justify-center text-caption rounded-lg
-                ${colorClasses[status]}
+                ${colorClasses[color] || colorClasses.green}
                 ${isToday ? 'ring-2 ring-primary' : ''}
               `}
             >
@@ -681,6 +729,7 @@ const MiniCalendar = ({ bookings, year, month, onViewCalendar }) => {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3 text-caption text-gray-500 dark:text-gray-400">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-500"></span>Frei</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-500"></span>Pending</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-yellow-400"></span>Option</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-500"></span>Fix</span>

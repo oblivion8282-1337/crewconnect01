@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ChevronRight,
   ChevronLeft,
@@ -14,9 +14,30 @@ import {
   isTerminalStatus
 } from '../../constants/calendar';
 import {
+  PROJECT_STATUS,
   PROJECT_STATUS_LABELS,
   PROJECT_STATUS_COLORS
 } from '../../data/initialData';
+
+// Projekt-Kategorien
+const PROJECT_CATEGORIES = {
+  ACTIVE: 'active',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled'
+};
+
+const CATEGORY_LABELS = {
+  [PROJECT_CATEGORIES.ACTIVE]: 'Laufend',
+  [PROJECT_CATEGORIES.COMPLETED]: 'Abgeschlossen',
+  [PROJECT_CATEGORIES.CANCELLED]: 'Abgebrochen'
+};
+
+// Welche Status gehören zu welcher Kategorie
+const getProjectCategory = (status) => {
+  if (status === PROJECT_STATUS.COMPLETED) return PROJECT_CATEGORIES.COMPLETED;
+  if (status === PROJECT_STATUS.CANCELLED) return PROJECT_CATEGORIES.CANCELLED;
+  return PROJECT_CATEGORIES.ACTIVE;
+};
 
 /**
  * FreelancerProjects - Projektansicht für Freelancer
@@ -25,10 +46,26 @@ const FreelancerProjects = ({
   bookings,
   projects,
   freelancers,
-  freelancerId
+  freelancerId,
+  initialProjectId = null,
+  initialPhaseId = null
 }) => {
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
-  const [selectedPhaseId, setSelectedPhaseId] = useState(null);
+  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
+  const [selectedPhaseId, setSelectedPhaseId] = useState(initialPhaseId);
+  const [activeCategory, setActiveCategory] = useState(PROJECT_CATEGORIES.ACTIVE);
+
+  // Update state when initial props change (navigation from other views)
+  useEffect(() => {
+    if (initialProjectId !== null) {
+      setSelectedProjectId(initialProjectId);
+    }
+  }, [initialProjectId]);
+
+  useEffect(() => {
+    if (initialPhaseId !== null) {
+      setSelectedPhaseId(initialPhaseId);
+    }
+  }, [initialPhaseId]);
 
   // Finde alle Projekte, in denen der Freelancer gebucht ist
   const myProjects = useMemo(() => {
@@ -64,6 +101,18 @@ const FreelancerProjects = ({
 
     return Array.from(projectMap.values());
   }, [bookings, projects, freelancerId]);
+
+  // Kategorisiere Projekte
+  const categorizedProjects = useMemo(() => {
+    return {
+      [PROJECT_CATEGORIES.ACTIVE]: myProjects.filter(p => getProjectCategory(p.project.status) === PROJECT_CATEGORIES.ACTIVE),
+      [PROJECT_CATEGORIES.COMPLETED]: myProjects.filter(p => getProjectCategory(p.project.status) === PROJECT_CATEGORIES.COMPLETED),
+      [PROJECT_CATEGORIES.CANCELLED]: myProjects.filter(p => getProjectCategory(p.project.status) === PROJECT_CATEGORIES.CANCELLED)
+    };
+  }, [myProjects]);
+
+  // Aktuelle Projekte basierend auf Kategorie
+  const currentProjects = categorizedProjects[activeCategory] || [];
 
   const selectedProject = selectedProjectId
     ? myProjects.find(p => p.project.id === selectedProjectId)
@@ -128,6 +177,10 @@ const FreelancerProjects = ({
           <div className="flex items-start gap-4">
             <span className="text-4xl">{selectedPhase.icon || '📋'}</span>
             <div className="flex-1">
+              {/* Produktionsfirma (Agentur) */}
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-1">
+                {myPhaseBookings[0]?.agencyName || selectedProject.bookings[0]?.agencyName || 'Unbekannte Agentur'}
+              </p>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedPhase.name}</h1>
               <p className="text-gray-600 dark:text-gray-400">{selectedProject.project.name}</p>
 
@@ -245,8 +298,11 @@ const FreelancerProjects = ({
         <div className="bg-white dark:bg-gray-800 rounded-card shadow-sm p-6 mb-6 border border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-start mb-4">
             <div>
+              {/* Produktionsfirma (Agentur) */}
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-1">
+                {selectedProject.bookings[0]?.agencyName || 'Unbekannte Agentur'}
+              </p>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedProject.project.name}</h1>
-              <p className="text-gray-600 dark:text-gray-400">{selectedProject.project.client}</p>
             </div>
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${PROJECT_STATUS_COLORS[selectedProject.project.status] || 'bg-gray-100 dark:bg-gray-700'}`}>
               {PROJECT_STATUS_LABELS[selectedProject.project.status] || 'Planung'}
@@ -316,14 +372,50 @@ const FreelancerProjects = ({
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Meine Projekte</h1>
 
+      {/* Kategorie-Tabs */}
+      <div className="flex gap-2 mb-6">
+        {Object.values(PROJECT_CATEGORIES).map(category => {
+          const count = categorizedProjects[category]?.length || 0;
+          const isActive = activeCategory === category;
+          return (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              className={`
+                px-4 py-2 rounded-xl text-sm font-medium transition-all
+                ${isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }
+              `}
+            >
+              {CATEGORY_LABELS[category]}
+              {count > 0 && (
+                <span className={`ml-2 px-1.5 py-0.5 rounded-md text-xs ${
+                  isActive
+                    ? 'bg-white/20 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                }`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {myProjects.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-card shadow-sm p-8 text-center text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
-          <p className="mb-2">Du hast noch keine aktiven Projekte.</p>
+          <p className="mb-2">Du hast noch keine Projekte.</p>
           <p className="text-sm">Sobald eine Agentur dich bucht, erscheinen die Projekte hier.</p>
+        </div>
+      ) : currentProjects.length === 0 ? (
+        <div className="bg-white dark:bg-gray-800 rounded-card shadow-sm p-8 text-center text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+          <p>Keine {CATEGORY_LABELS[activeCategory].toLowerCase()}en Projekte.</p>
         </div>
       ) : (
         <div className="space-y-4">
-          {myProjects.map(({ project, phases, bookings: projectBookings }) => {
+          {currentProjects.map(({ project, phases, bookings: projectBookings }) => {
             const totalDays = projectBookings.reduce((sum, b) => sum + b.dates.length, 0);
             const totalCost = projectBookings.reduce((sum, b) => sum + (b.totalCost || 0), 0);
             const phaseCount = phases.size;
@@ -336,13 +428,19 @@ const FreelancerProjects = ({
               >
                 <div className="flex justify-between items-start mb-3">
                   <div>
+                    {/* Produktionsfirma (Agentur) */}
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-1">
+                      {projectBookings[0]?.agencyName || 'Unbekannte Agentur'}
+                    </p>
                     <div className="flex items-center gap-3 mb-1">
                       <h2 className="font-bold text-lg text-gray-900 dark:text-white">{project.name}</h2>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PROJECT_STATUS_COLORS[project.status] || 'bg-gray-100 dark:bg-gray-700'}`}>
                         {PROJECT_STATUS_LABELS[project.status] || 'Planung'}
                       </span>
                     </div>
-                    <p className="text-gray-600 dark:text-gray-400">{project.client}</p>
+                    {project.description && (
+                      <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2">{project.description}</p>
+                    )}
                   </div>
                   <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                 </div>

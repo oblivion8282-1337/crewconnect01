@@ -25,6 +25,19 @@ export const formatDateShort = (date) => {
 };
 
 /**
+ * Formatiert ein Datum mit Jahr (z.B. "12.01.25")
+ * @param {string|Date} date - Das zu formatierende Datum
+ * @returns {string} Formatiertes Datum mit Jahr (DD.MM.YY)
+ */
+export const formatDateWithYear = (date) => {
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = String(d.getFullYear()).slice(-2);
+  return `${day}.${month}.${year}`;
+};
+
+/**
  * Formatiert ein Datum mit Uhrzeit (z.B. "12. Jan, 14:30")
  * @param {string|Date} date - Das zu formatierende Datum
  * @returns {string} Formatiertes Datum mit Uhrzeit

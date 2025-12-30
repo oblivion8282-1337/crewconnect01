@@ -15,9 +15,7 @@ import {
 } from '../shared/ProfileField';
 import {
   PROFESSIONS,
-  SKILLS,
-  EQUIPMENT,
-  LANGUAGES,
+  TAGS,
   PORTFOLIO_CATEGORIES,
   SOCIAL_MEDIA_PLATFORMS
 } from '../../constants/profileOptions';
@@ -51,12 +49,8 @@ const FreelancerProfile = ({
   onUpdate,
   onAddProfession,
   onRemoveProfession,
-  onAddSkill,
-  onRemoveSkill,
-  onAddEquipment,
-  onRemoveEquipment,
-  onAddLanguage,
-  onRemoveLanguage,
+  onAddTag,
+  onRemoveTag,
   onAddPortfolioItem,
   onUpdatePortfolioItem,
   onRemovePortfolioItem,
@@ -91,7 +85,7 @@ const FreelancerProfile = ({
   };
 
   const handleSaveEdit = () => {
-    const { professions, skills, equipment, languages, portfolio, socialMedia, visibility, ...simpleFields } = editData;
+    const { professions, tags, portfolio, socialMedia, visibility, ...simpleFields } = editData;
     onUpdate(simpleFields);
     setIsEditing(false);
   };
@@ -364,50 +358,25 @@ const FreelancerProfile = ({
         </div>
       </ProfileSection>
 
-      {/* Skills */}
-      <ProfileSection title="Skills & Spezialisierungen">
+      {/* Tags (Skills, Equipment, Sprachen) */}
+      <ProfileSection title="Tags">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+          Skills, Equipment und Sprachen in einem
+        </p>
         <ComboboxField
-          values={profile.skills || []}
-          suggestions={SKILLS}
-          onAdd={onAddSkill}
-          onRemove={onRemoveSkill}
+          values={profile.tags || []}
+          suggestions={TAGS}
+          onAdd={onAddTag}
+          onRemove={onRemoveTag}
           isEditing={isEditing}
-          placeholder="Skill suchen..."
-          color="blue"
-          maxSuggestions={15}
+          placeholder="Tag suchen..."
+          color="gray"
+          maxSuggestions={20}
         />
-      </ProfileSection>
-
-      {/* Equipment */}
-      <ProfileSection title="Equipment">
-        <CheckboxField label="Eigenes Equipment vorhanden" value={currentData.hasOwnEquipment}
-          onChange={(v) => handleChange('hasOwnEquipment', v)} isEditing={isEditing} />
-        {(isEditing ? currentData.hasOwnEquipment : profile.hasOwnEquipment) && (
-          <ComboboxField
-            values={profile.equipment || []}
-            suggestions={EQUIPMENT}
-            onAdd={onAddEquipment}
-            onRemove={onRemoveEquipment}
-            isEditing={isEditing}
-            placeholder="Equipment suchen..."
-            color="purple"
-            maxSuggestions={15}
-          />
-        )}
-      </ProfileSection>
-
-      {/* Sprachen */}
-      <ProfileSection title="Sprachen">
-        <ComboboxField
-          values={profile.languages || []}
-          suggestions={LANGUAGES}
-          onAdd={onAddLanguage}
-          onRemove={onRemoveLanguage}
-          isEditing={isEditing}
-          placeholder="Sprache suchen..."
-          color="green"
-          maxSuggestions={14}
-        />
+        <div className="mt-4">
+          <CheckboxField label="Eigenes Equipment vorhanden" value={currentData.hasOwnEquipment}
+            onChange={(v) => handleChange('hasOwnEquipment', v)} isEditing={isEditing} />
+        </div>
       </ProfileSection>
 
       {/* Über mich */}

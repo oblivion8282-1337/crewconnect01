@@ -8,11 +8,11 @@ const StartChatButton = ({
   targetUserId,
   targetUserType,
   targetUserName,
-  targetUserAvatar,
+  targetUserProfileImage,
   currentUserId,
   currentUserType,
   currentUserName,
-  currentUserAvatar,
+  currentUserProfileImage,
   variant = 'button',
   size = 'md',
   onClick,
@@ -27,19 +27,19 @@ const StartChatButton = ({
       chat = getOrCreateChat(
         currentUserId,
         currentUserName,
-        currentUserAvatar,
+        currentUserProfileImage,
         targetUserId,
         targetUserName,
-        targetUserAvatar
+        targetUserProfileImage
       );
     } else {
       chat = getOrCreateChat(
         targetUserId,
         targetUserName,
-        targetUserAvatar,
+        targetUserProfileImage,
         currentUserId,
         currentUserName,
-        currentUserAvatar
+        currentUserProfileImage
       );
     }
 
