@@ -48,7 +48,11 @@ import { useProjects } from './hooks/useProjects';
 import { useProfile } from './hooks/useProfile';
 import { useMessages } from './hooks/useMessages';
 import { useClients } from './hooks/useClients';
+import useTeam from './hooks/useTeam';
 import { USER_ROLES } from './constants/calendar';
+
+// Team Components
+import { TeamList } from './components/agency/team';
 
 /**
  * CrewConnect - Hauptanwendung (Innere Komponente mit Zugriff auf Context)
@@ -165,8 +169,37 @@ const AppContent = () => {
     updateCrewListColor,
     addToCrewList,
     removeFromCrewList,
-    getListsForFreelancer
+    getListsForFreelancer,
+    // Team-Permissions
+    updateDefaultMemberPermissions,
+    getDefaultMemberPermissions
   } = useProfile(freelancerId, agencyId);
+
+  // === Team Logic (interne Mitarbeiter) ===
+  const {
+    teamMembers,
+    teamAbsences,
+    absenceRequests,
+    teamAssignments,
+    createMember: addMember,
+    updateMember,
+    deleteMember: removeMember,
+    addAbsence,
+    removeAbsence,
+    createAbsenceRequest: requestAbsence,
+    approveAbsenceRequest,
+    rejectAbsenceRequest,
+    createAssignment: addTeamAssignment,
+    removeAssignment: removeTeamAssignment,
+    checkConflicts: checkTeamConflicts,
+    getMemberUtilization: getUtilization,
+    getMemberAvailabilityRange: getAvailability,
+    getAbsencesForMember,
+    getAssignmentsForMember
+  } = useTeam(agencyId);
+
+  // Anzahl der offenen Abwesenheitsanfragen für Badge
+  const pendingAbsenceRequestsCount = absenceRequests.filter(r => r.status === 'pending').length;
 
   // === Booking Logic ===
   const {
@@ -493,6 +526,7 @@ const AppContent = () => {
         badgeCount={navBadgeCount}
         messageBadgeCount={userRole === USER_ROLES.FREELANCER ? freelancerUnreadMessages : agencyUnreadMessages}
         bookingsBadgeCount={agencyBookingNotificationsCount}
+        teamBadgeCount={pendingAbsenceRequestsCount}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         isCollapsed={sidebarCollapsed}
@@ -707,6 +741,12 @@ const AppContent = () => {
                 setSelectedClientId(clientId);
                 setCurrentView('clients');
               }}
+              // Team Props (interne Mitarbeiter)
+              teamMembers={teamMembers}
+              teamAssignments={teamAssignments}
+              onAddTeamAssignment={addTeamAssignment}
+              onRemoveTeamAssignment={removeTeamAssignment}
+              checkTeamConflicts={checkTeamConflicts}
             />
           )}
 
@@ -795,6 +835,31 @@ const AppContent = () => {
                 setSelectedProjectId(projectId);
                 setCurrentView('projects');
               }}
+            />
+          )}
+
+          {/* Agency Team View (interne Mitarbeiter) */}
+          {userRole === USER_ROLES.AGENCY && currentView === 'team' && (
+            <TeamList
+              teamMembers={teamMembers}
+              teamAbsences={teamAbsences}
+              teamAssignments={teamAssignments}
+              teamHandlers={{
+                addMember,
+                updateMember,
+                removeMember,
+                addAbsence,
+                removeAbsence,
+                requestAbsence,
+                approveAbsenceRequest,
+                rejectAbsenceRequest
+              }}
+              absenceRequests={absenceRequests}
+              agencyDefaults={getDefaultMemberPermissions()}
+              updateDefaultMemberPermissions={updateDefaultMemberPermissions}
+              getUtilization={getUtilization}
+              getAbsencesForMember={getAbsencesForMember}
+              getAssignmentsForMember={getAssignmentsForMember}
             />
           )}
 

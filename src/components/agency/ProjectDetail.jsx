@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { getIndustryLabel } from '../../constants/clients';
 import FreelancerSearchModal from '../modals/FreelancerSearchModal';
+import { ProjectCrewSection } from './team';
 import DateRangePicker from '../shared/DateRangePicker';
 import ResizableModal from '../shared/ResizableModal';
 import { ProfileAvatar } from '../shared/ProfileField';
@@ -161,7 +162,13 @@ const ProjectDetail = ({
   onOpenChat,
   // CRM Props
   client,
-  onNavigateToClient
+  onNavigateToClient,
+  // Team Props (interne Mitarbeiter)
+  teamMembers,
+  teamAssignments,
+  onAddTeamAssignment,
+  onRemoveTeamAssignment,
+  checkTeamConflicts
 }) => {
   const [searchContext, setSearchContext] = useState(null);
   const [showAddPhase, setShowAddPhase] = useState(false);
@@ -688,6 +695,20 @@ const ProjectDetail = ({
           </div>
         )}
       </div>
+
+      {/* Interne Crew */}
+      {teamMembers && teamMembers.length > 0 && (
+        <div className="mb-6">
+          <ProjectCrewSection
+            project={project}
+            teamMembers={teamMembers}
+            assignments={teamAssignments || []}
+            onAddAssignment={onAddTeamAssignment}
+            onRemoveAssignment={onRemoveTeamAssignment}
+            checkConflicts={checkTeamConflicts}
+          />
+        </div>
+      )}
 
       {/* Projekt-Aktionen */}
       {project.status !== PROJECT_STATUS.COMPLETED && project.status !== PROJECT_STATUS.CANCELLED && (

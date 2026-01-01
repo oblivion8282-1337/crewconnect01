@@ -6,6 +6,7 @@ import {
   CheckCircle,
   User,
   Users,
+  UsersRound,
   Search,
   Inbox,
   ChevronLeft,
@@ -35,6 +36,7 @@ const AGENCY_NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'projects', icon: Briefcase, label: 'Projekte' },
   { id: 'clients', icon: Building2, label: 'Kunden' },
+  { id: 'team', icon: UsersRound, label: 'Team', showTeamBadge: true },
   { id: 'bookings', icon: CheckCircle, label: 'Buchungen', showBookingsBadge: true },
   { id: 'messages', icon: MessageCircle, label: 'Nachrichten', showMessageBadge: true },
   { id: 'freelancer-search', icon: Search, label: 'Freelancer' },
@@ -52,6 +54,7 @@ const Sidebar = ({
   badgeCount = 0,
   messageBadgeCount = 0,
   bookingsBadgeCount = 0,
+  teamBadgeCount = 0,
   isOpen,
   onClose,
   isCollapsed,
@@ -124,9 +127,10 @@ const Sidebar = ({
               const showBadge = item.showBadge && badgeCount > 0;
               const showMessageBadge = item.showMessageBadge && messageBadgeCount > 0;
               const showBookingsBadge = item.showBookingsBadge && bookingsBadgeCount > 0;
+              const showTeamBadge = item.showTeamBadge && teamBadgeCount > 0;
               const isActive = currentView === item.id;
-              const displayBadgeCount = showBadge ? badgeCount : (showMessageBadge ? messageBadgeCount : (showBookingsBadge ? bookingsBadgeCount : 0));
-              const hasBadge = showBadge || showMessageBadge || showBookingsBadge;
+              const displayBadgeCount = showBadge ? badgeCount : (showMessageBadge ? messageBadgeCount : (showBookingsBadge ? bookingsBadgeCount : (showTeamBadge ? teamBadgeCount : 0)));
+              const hasBadge = showBadge || showMessageBadge || showBookingsBadge || showTeamBadge;
 
               return (
                 <button

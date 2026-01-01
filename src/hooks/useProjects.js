@@ -153,6 +153,91 @@ export const useProjects = () => {
     return projects.filter(p => p.clientId === clientId);
   }, [projects]);
 
+  // === Team-Permissions für Projekte ===
+
+  /**
+   * Aktualisiert die Standard-Permissions für Team-Mitglieder in einem Projekt
+   * Diese überschreiben Agentur-Defaults für alle Mitarbeiter im Projekt
+   * @param {number} projectId - ID des Projekts
+   * @param {Object} permissions - Permissions-Objekt { canSeeBudget: boolean, ... }
+   */
+  const updateProjectMemberPermissions = useCallback((projectId, permissions) => {
+    setProjects(prev => prev.map(project => {
+      if (project.id !== projectId) return project;
+
+      return {
+        ...project,
+        memberPermissions: {
+          ...project.memberPermissions,
+          defaults: {
+            ...(project.memberPermissions?.defaults || {}),
+            ...permissions
+          }
+        }
+      };
+    }));
+  }, []);
+
+  /**
+   * Aktualisiert die Permissions für einen spezifischen Mitarbeiter in einem Projekt
+   * Diese überschreiben alle anderen Ebenen (höchste Priorität)
+   * @param {number} projectId - ID des Projekts
+   * @param {number} memberId - ID des Team-Mitglieds
+   * @param {Object} permissions - Permissions-Objekt { canSeeBudget: boolean, ... }
+   */
+  const updateProjectMemberOverride = useCallback((projectId, memberId, permissions) => {
+    setProjects(prev => prev.map(project => {
+      if (project.id !== projectId) return project;
+
+      return {
+        ...project,
+        memberPermissions: {
+          ...project.memberPermissions,
+          memberOverrides: {
+            ...(project.memberPermissions?.memberOverrides || {}),
+            [memberId]: {
+              ...(project.memberPermissions?.memberOverrides?.[memberId] || {}),
+              ...permissions
+            }
+          }
+        }
+      };
+    }));
+  }, []);
+
+  /**
+   * Löscht alle spezifischen Overrides für einen Mitarbeiter in einem Projekt
+   * Danach greifen wieder die Projekt- bzw. Agentur-Defaults
+   * @param {number} projectId - ID des Projekts
+   * @param {number} memberId - ID des Team-Mitglieds
+   */
+  const clearProjectMemberOverride = useCallback((projectId, memberId) => {
+    setProjects(prev => prev.map(project => {
+      if (project.id !== projectId) return project;
+      if (!project.memberPermissions?.memberOverrides?.[memberId]) return project;
+
+      const { [memberId]: removed, ...remainingOverrides } = project.memberPermissions.memberOverrides;
+
+      return {
+        ...project,
+        memberPermissions: {
+          ...project.memberPermissions,
+          memberOverrides: remainingOverrides
+        }
+      };
+    }));
+  }, []);
+
+  /**
+   * Gibt die memberPermissions eines Projekts zurück
+   * @param {number} projectId - ID des Projekts
+   * @returns {Object} { defaults: {}, memberOverrides: {} }
+   */
+  const getProjectMemberPermissions = useCallback((projectId) => {
+    const project = projects.find(p => p.id === projectId);
+    return project?.memberPermissions || { defaults: {}, memberOverrides: {} };
+  }, [projects]);
+
   /**
    * Gibt alle Projekte mit Kunden-Info zurück
    * @param {Array} clients - Array aller Kunden
@@ -178,6 +263,11 @@ export const useProjects = () => {
     updateProjectBudget,
     // CRM-Integration
     getProjectsByClient,
-    getProjectsWithClientInfo
+    getProjectsWithClientInfo,
+    // Team-Permissions
+    updateProjectMemberPermissions,
+    updateProjectMemberOverride,
+    clearProjectMemberOverride,
+    getProjectMemberPermissions
   };
 };

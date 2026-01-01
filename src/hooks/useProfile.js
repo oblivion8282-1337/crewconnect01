@@ -3,6 +3,7 @@ import {
   INITIAL_FREELANCERS,
   INITIAL_AGENCIES
 } from '../data/initialData';
+import { getDefaultPermissions } from '../utils/permissions';
 
 // Kalender-Sichtbarkeits-Optionen
 export const CALENDAR_VISIBILITY = {
@@ -87,6 +88,38 @@ export const useProfile = (freelancerId, agencyId) => {
         : a
     ));
   }, [agencyId]);
+
+  /**
+   * Aktualisiert die Standard-Permissions für Team-Mitglieder der Agentur
+   * Diese werden als Fallback verwendet, wenn keine Projekt- oder Mitarbeiter-spezifischen Overrides existieren
+   * @param {Object} permissions - Permissions-Objekt { canSeeBudget: boolean, ... }
+   */
+  const updateDefaultMemberPermissions = useCallback((permissions) => {
+    setAgencies(prev => prev.map(a =>
+      a.id === agencyId
+        ? {
+            ...a,
+            defaultMemberPermissions: {
+              ...getDefaultPermissions(), // System-Defaults als Basis
+              ...(a.defaultMemberPermissions || {}), // Vorhandene Werte
+              ...permissions // Neue Werte überschreiben
+            }
+          }
+        : a
+    ));
+  }, [agencyId]);
+
+  /**
+   * Gibt die Standard-Permissions der Agentur zurück (mit System-Fallbacks)
+   * @returns {Object} Vollständiges Permissions-Objekt
+   */
+  const getDefaultMemberPermissions = useCallback(() => {
+    const agency = agencies.find(a => a.id === agencyId);
+    return {
+      ...getDefaultPermissions(),
+      ...(agency?.defaultMemberPermissions || {})
+    };
+  }, [agencies, agencyId]);
 
   /**
    * Fügt einen Beruf zum Freelancer-Profil hinzu
@@ -532,6 +565,10 @@ export const useProfile = (freelancerId, agencyId) => {
     // Update-Funktionen
     updateFreelancerProfile,
     updateAgencyProfile,
+
+    // Team-Permissions (Agentur-Level Defaults)
+    updateDefaultMemberPermissions,
+    getDefaultMemberPermissions,
 
     // Array-Operationen für Freelancer
     addProfession,
