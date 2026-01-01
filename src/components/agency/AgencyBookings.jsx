@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { CalendarRange, Inbox, ChevronRight, ChevronDown, ChevronUp, Euro, Calendar, AlertTriangle } from 'lucide-react';
+import { CalendarRange, Inbox, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Euro, Calendar, AlertTriangle } from 'lucide-react';
 import StatusBadge from '../shared/StatusBadge';
-import { formatDateShort, formatDateWithYear, formatDateTime } from '../../utils/dateUtils';
+import { formatDateShort, formatDateWithYear, formatDateTime, parseLocalDate } from '../../utils/dateUtils';
 import {
   BOOKING_STATUS,
   isPendingStatus,
@@ -73,35 +73,135 @@ const TabButton = ({ active, onClick, color, badge, count, children }) => {
 };
 
 /**
- * Aufklappbare Tagesliste
+ * Mini-Kalender für Buchungen
+ */
+const BookingMiniCalendar = ({ dates, colorScheme = 'blue' }) => {
+  const sortedDates = useMemo(() => [...dates].sort(), [dates]);
+  const firstDate = sortedDates[0];
+  const bookedDatesSet = useMemo(() => new Set(dates), [dates]);
+
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const d = parseLocalDate(firstDate);
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+
+  const colorMap = {
+    blue: 'bg-blue-500',
+    yellow: 'bg-yellow-500',
+    emerald: 'bg-emerald-500',
+    purple: 'bg-purple-500'
+  };
+  const bgColor = colorMap[colorScheme] || colorMap.blue;
+
+  const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  const weekDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+
+  const getDaysInMonth = (monthDate) => {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const days = [];
+
+    let startDay = firstDay.getDay() - 1;
+    if (startDay < 0) startDay = 6;
+    for (let i = 0; i < startDay; i++) {
+      days.push(null);
+    }
+
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      days.push({ day: i, dateStr, isBooked: bookedDatesSet.has(dateStr) });
+    }
+
+    return days;
+  };
+
+  const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+  const leftDays = getDaysInMonth(currentMonth);
+  const rightDays = getDaysInMonth(nextMonth);
+
+  const renderMonth = (monthDate, days) => (
+    <div className="flex-1 min-w-0">
+      <div className="text-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {monthNames[monthDate.getMonth()]} {monthDate.getFullYear()}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 mb-1">
+        {weekDays.map(day => (
+          <div key={day} className="text-center text-[10px] text-gray-400 dark:text-gray-500 py-0.5">
+            {day}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {days.map((day, idx) => {
+          if (!day) return <div key={`empty-${idx}`} className="h-6" />;
+          return (
+            <div
+              key={day.dateStr}
+              className={`h-6 flex items-center justify-center text-xs rounded ${
+                day.isBooked
+                  ? `${bgColor} text-white font-medium`
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              {day.day}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between mb-2">
+        <button
+          onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+        >
+          <ChevronLeft className="w-4 h-4 text-gray-500" />
+        </button>
+        <button
+          onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+        >
+          <ChevronRight className="w-4 h-4 text-gray-500" />
+        </button>
+      </div>
+      <div className="flex gap-4">
+        {renderMonth(currentMonth, leftDays)}
+        {renderMonth(nextMonth, rightDays)}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Aufklappbare Tagesliste mit Mini-Kalender
  */
 const ExpandableDateList = ({ dates, colorScheme = 'blue' }) => {
   const [expanded, setExpanded] = useState(false);
-  const sortedDates = [...dates].sort();
 
   const colors = {
     blue: {
       bg: 'bg-blue-100/50 dark:bg-blue-900/30',
       icon: 'text-blue-600 dark:text-blue-500',
-      badge: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
       button: 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300'
     },
     yellow: {
       bg: 'bg-yellow-100/50 dark:bg-yellow-900/30',
       icon: 'text-yellow-600 dark:text-yellow-500',
-      badge: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300',
       button: 'text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300'
     },
     emerald: {
       bg: 'bg-emerald-100/50 dark:bg-emerald-900/30',
       icon: 'text-emerald-600 dark:text-emerald-500',
-      badge: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
       button: 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300'
     },
     purple: {
       bg: 'bg-purple-100/50 dark:bg-purple-900/30',
       icon: 'text-purple-600 dark:text-purple-500',
-      badge: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
       button: 'text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300'
     }
   };
@@ -126,39 +226,61 @@ const ExpandableDateList = ({ dates, colorScheme = 'blue' }) => {
         {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
       </button>
       {expanded && (
-        <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-            {sortedDates.map(day => {
-              const date = new Date(day);
-              const weekday = date.toLocaleDateString('de-DE', { weekday: 'short' });
-              return (
-                <span
-                  key={day}
-                  className={`px-2 py-1 text-xs rounded-md ${c.badge}`}
-                >
-                  {weekday}, {formatDateShort(day)}
-                </span>
-              );
-            })}
-          </div>
-        </div>
+        <BookingMiniCalendar dates={dates} colorScheme={colorScheme} />
       )}
     </div>
   );
 };
 
 /**
- * Projekt/Phase Badges wie im FreelancerSearchModal
+ * Gage-Anzeige mit Aufschlüsselung
  */
-const ProjectPhaseBadges = ({ projectName, phaseName }) => (
+const BookingFeeDisplay = ({ booking }) => (
+  <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+    <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+      <Euro className="w-4 h-4" />
+      Gage
+    </span>
+    <div className="text-right">
+      {booking.rateType === 'flat' ? (
+        <>
+          <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">Pauschal</span>
+          <span className="font-bold text-lg text-gray-900 dark:text-white">
+            {booking.totalCost?.toLocaleString('de-DE') || 0}€
+          </span>
+        </>
+      ) : (
+        <>
+          <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
+            {booking.dayRate?.toLocaleString('de-DE') || 0}€ × {booking.dates?.length || 0} Tage
+          </span>
+          <span className="font-bold text-lg text-gray-900 dark:text-white">
+            {booking.totalCost?.toLocaleString('de-DE') || 0}€
+          </span>
+        </>
+      )}
+    </div>
+  </div>
+);
+
+/**
+ * Projekt/Phase Badges mit Klick-Navigation
+ */
+const ProjectPhaseBadges = ({ projectName, phaseName, onProjectClick, onPhaseClick }) => (
   <div className="flex items-center gap-2 flex-wrap">
-    <span className="px-2.5 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-lg font-medium text-sm">
+    <button
+      onClick={(e) => { e.stopPropagation(); onProjectClick?.(); }}
+      className="px-2.5 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-lg font-medium text-sm hover:bg-blue-200 dark:hover:bg-blue-800/60 transition-colors cursor-pointer"
+    >
       {projectName}
-    </span>
+    </button>
     <span className="text-gray-400 dark:text-gray-500">→</span>
-    <span className="px-2.5 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-lg font-medium text-sm">
+    <button
+      onClick={(e) => { e.stopPropagation(); onPhaseClick?.(); }}
+      className="px-2.5 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-lg font-medium text-sm hover:bg-purple-200 dark:hover:bg-purple-800/60 transition-colors cursor-pointer"
+    >
       {phaseName || 'Phase'}
-    </span>
+    </button>
   </div>
 );
 
@@ -173,6 +295,7 @@ const AgencyBookings = ({
   onCancel,
   onWithdrawReschedule,
   onConvertToFix,
+  onNavigateToProject,
   onNavigateToPhase
 }) => {
   const [activeTab, setActiveTab] = useState('pending');
@@ -310,6 +433,7 @@ const AgencyBookings = ({
                   booking={booking}
                   onWithdraw={onWithdraw}
                   onReschedule={onReschedule}
+                  onNavigateToProject={onNavigateToProject}
                   onNavigateToPhase={onNavigateToPhase}
                 />
               ))}
@@ -318,6 +442,7 @@ const AgencyBookings = ({
                   key={booking.id}
                   booking={booking}
                   onWithdraw={onWithdrawReschedule}
+                  onNavigateToProject={onNavigateToProject}
                   onNavigateToPhase={onNavigateToPhase}
                 />
               ))}
@@ -328,6 +453,7 @@ const AgencyBookings = ({
                   onReschedule={onReschedule}
                   onCancel={onCancel}
                   onConvertToFix={onConvertToFix}
+                  onNavigateToProject={onNavigateToProject}
                   onNavigateToPhase={onNavigateToPhase}
                 />
               ))}
@@ -337,6 +463,7 @@ const AgencyBookings = ({
                   booking={booking}
                   onReschedule={onReschedule}
                   onCancel={onCancel}
+                  onNavigateToProject={onNavigateToProject}
                   onNavigateToPhase={onNavigateToPhase}
                 />
               ))}
@@ -344,6 +471,7 @@ const AgencyBookings = ({
                 <CancelledBookingCard
                   key={booking.id}
                   booking={booking}
+                  onNavigateToProject={onNavigateToProject}
                   onNavigateToPhase={onNavigateToPhase}
                 />
               ))}
@@ -358,17 +486,11 @@ const AgencyBookings = ({
 /**
  * Karte für Verschiebungsanfragen
  */
-const RescheduleBookingCard = ({ booking, onWithdraw, onNavigateToPhase }) => (
-  <div
-    className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-l-4 border-l-blue-500 rounded-card mb-3 hover:border-blue-300 dark:hover:border-blue-600 transition-colors cursor-pointer group"
-    onClick={() => onNavigateToPhase?.(booking.projectId, booking.phaseId)}
-  >
+const RescheduleBookingCard = ({ booking, onWithdraw, onNavigateToProject, onNavigateToPhase }) => (
+  <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-l-4 border-l-blue-500 rounded-card mb-3">
     {/* Header: Freelancer + Status */}
     <div className="flex justify-between items-start mb-3">
-      <div className="flex items-center gap-2">
-        <p className="font-semibold text-gray-900 dark:text-white">{booking.freelancerName}</p>
-        <ChevronRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
+      <p className="font-semibold text-gray-900 dark:text-white">{booking.freelancerName}</p>
       <StatusBadge
         status={booking.status}
         type={booking.type}
@@ -378,7 +500,12 @@ const RescheduleBookingCard = ({ booking, onWithdraw, onNavigateToPhase }) => (
 
     {/* Projekt/Phase Badges */}
     <div className="mb-3">
-      <ProjectPhaseBadges projectName={booking.projectName} phaseName={booking.phaseName} />
+      <ProjectPhaseBadges
+        projectName={booking.projectName}
+        phaseName={booking.phaseName}
+        onProjectClick={() => onNavigateToProject?.(booking.projectId)}
+        onPhaseClick={() => onNavigateToPhase?.(booking.projectId, booking.phaseId)}
+      />
     </div>
 
     {/* Datum-Änderung (Verschiebung) */}
@@ -401,15 +528,7 @@ const RescheduleBookingCard = ({ booking, onWithdraw, onNavigateToPhase }) => (
     </div>
 
     {/* Kosten */}
-    <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-      <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-        <Euro className="w-4 h-4" />
-        Gage
-      </span>
-      <span className="font-bold text-lg text-gray-900 dark:text-white">
-        {booking.totalCost?.toLocaleString('de-DE') || 0}€
-      </span>
-    </div>
+    <BookingFeeDisplay booking={booking} />
 
     <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
       <button
@@ -425,23 +544,22 @@ const RescheduleBookingCard = ({ booking, onWithdraw, onNavigateToPhase }) => (
 /**
  * Karte für wartende Anfragen
  */
-const PendingBookingCard = ({ booking, onWithdraw, onReschedule, onNavigateToPhase }) => (
-  <div
-    className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-l-4 border-l-purple-500 rounded-card mb-3 hover:border-purple-300 dark:hover:border-purple-600 transition-colors cursor-pointer group"
-    onClick={() => onNavigateToPhase?.(booking.projectId, booking.phaseId)}
-  >
+const PendingBookingCard = ({ booking, onWithdraw, onReschedule, onNavigateToProject, onNavigateToPhase }) => (
+  <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-l-4 border-l-purple-500 rounded-card mb-3">
     {/* Header: Freelancer + Status */}
     <div className="flex justify-between items-start mb-3">
-      <div className="flex items-center gap-2">
-        <p className="font-semibold text-gray-900 dark:text-white">{booking.freelancerName}</p>
-        <ChevronRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
+      <p className="font-semibold text-gray-900 dark:text-white">{booking.freelancerName}</p>
       <StatusBadge status={booking.status} type={booking.type} />
     </div>
 
     {/* Projekt/Phase Badges */}
     <div className="mb-3">
-      <ProjectPhaseBadges projectName={booking.projectName} phaseName={booking.phaseName} />
+      <ProjectPhaseBadges
+        projectName={booking.projectName}
+        phaseName={booking.phaseName}
+        onProjectClick={() => onNavigateToProject?.(booking.projectId)}
+        onPhaseClick={() => onNavigateToPhase?.(booking.projectId, booking.phaseId)}
+      />
     </div>
 
     {/* Aufklappbare Tagesliste */}
@@ -450,15 +568,7 @@ const PendingBookingCard = ({ booking, onWithdraw, onReschedule, onNavigateToPha
     </div>
 
     {/* Kosten */}
-    <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-      <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-        <Euro className="w-4 h-4" />
-        Gage
-      </span>
-      <span className="font-bold text-lg text-gray-900 dark:text-white">
-        {booking.totalCost?.toLocaleString('de-DE') || 0}€
-      </span>
-    </div>
+    <BookingFeeDisplay booking={booking} />
 
     <div className="flex gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
       <button
@@ -481,18 +591,12 @@ const PendingBookingCard = ({ booking, onWithdraw, onReschedule, onNavigateToPha
 /**
  * Karte für eine optionierte Buchung
  */
-const OptionBookingCard = ({ booking, onReschedule, onCancel, onConvertToFix, onNavigateToPhase }) => {
+const OptionBookingCard = ({ booking, onReschedule, onCancel, onConvertToFix, onNavigateToProject, onNavigateToPhase }) => {
   return (
-    <div
-      className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-l-4 border-l-yellow-500 rounded-card mb-3 hover:border-yellow-300 dark:hover:border-yellow-600 transition-colors cursor-pointer group"
-      onClick={() => onNavigateToPhase?.(booking.projectId, booking.phaseId)}
-    >
+    <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-l-4 border-l-yellow-500 rounded-card mb-3">
       {/* Header: Freelancer + Status Badge */}
       <div className="flex justify-between items-start mb-3">
-        <div className="flex items-center gap-2">
-          <p className="font-semibold text-gray-900 dark:text-white">{booking.freelancerName}</p>
-          <ChevronRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
+        <p className="font-semibold text-gray-900 dark:text-white">{booking.freelancerName}</p>
         <span className="px-2 py-1 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400">
           Option
         </span>
@@ -500,7 +604,12 @@ const OptionBookingCard = ({ booking, onReschedule, onCancel, onConvertToFix, on
 
       {/* Projekt/Phase Badges */}
       <div className="mb-3">
-        <ProjectPhaseBadges projectName={booking.projectName} phaseName={booking.phaseName} />
+        <ProjectPhaseBadges
+          projectName={booking.projectName}
+          phaseName={booking.phaseName}
+          onProjectClick={() => onNavigateToProject?.(booking.projectId)}
+          onPhaseClick={() => onNavigateToPhase?.(booking.projectId, booking.phaseId)}
+        />
       </div>
 
       {/* Aufklappbare Tagesliste */}
@@ -509,15 +618,7 @@ const OptionBookingCard = ({ booking, onReschedule, onCancel, onConvertToFix, on
       </div>
 
       {/* Kosten */}
-      <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-        <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-          <Euro className="w-4 h-4" />
-          Gage
-        </span>
-        <span className="font-bold text-lg text-gray-900 dark:text-white">
-          {booking.totalCost?.toLocaleString('de-DE') || 0}€
-        </span>
-      </div>
+      <BookingFeeDisplay booking={booking} />
 
       <div className="flex gap-2 justify-end flex-wrap" onClick={(e) => e.stopPropagation()}>
         <button
@@ -547,18 +648,12 @@ const OptionBookingCard = ({ booking, onReschedule, onCancel, onConvertToFix, on
 /**
  * Karte für eine bestätigte Fix-Buchung
  */
-const FixBookingCard = ({ booking, onReschedule, onCancel, onNavigateToPhase }) => {
+const FixBookingCard = ({ booking, onReschedule, onCancel, onNavigateToProject, onNavigateToPhase }) => {
   return (
-    <div
-      className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-l-4 border-l-emerald-500 rounded-card mb-3 hover:border-emerald-300 dark:hover:border-emerald-600 transition-colors cursor-pointer group"
-      onClick={() => onNavigateToPhase?.(booking.projectId, booking.phaseId)}
-    >
+    <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-l-4 border-l-emerald-500 rounded-card mb-3">
       {/* Header: Freelancer + Status Badge */}
       <div className="flex justify-between items-start mb-3">
-        <div className="flex items-center gap-2">
-          <p className="font-semibold text-gray-900 dark:text-white">{booking.freelancerName}</p>
-          <ChevronRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
+        <p className="font-semibold text-gray-900 dark:text-white">{booking.freelancerName}</p>
         <span className="px-2 py-1 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">
           Fix
         </span>
@@ -566,7 +661,12 @@ const FixBookingCard = ({ booking, onReschedule, onCancel, onNavigateToPhase }) 
 
       {/* Projekt/Phase Badges */}
       <div className="mb-3">
-        <ProjectPhaseBadges projectName={booking.projectName} phaseName={booking.phaseName} />
+        <ProjectPhaseBadges
+          projectName={booking.projectName}
+          phaseName={booking.phaseName}
+          onProjectClick={() => onNavigateToProject?.(booking.projectId)}
+          onPhaseClick={() => onNavigateToPhase?.(booking.projectId, booking.phaseId)}
+        />
       </div>
 
       {/* Aufklappbare Tagesliste */}
@@ -575,15 +675,7 @@ const FixBookingCard = ({ booking, onReschedule, onCancel, onNavigateToPhase }) 
       </div>
 
       {/* Kosten */}
-      <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-        <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-          <Euro className="w-4 h-4" />
-          Gage
-        </span>
-        <span className="font-bold text-lg text-gray-900 dark:text-white">
-          {booking.totalCost?.toLocaleString('de-DE') || 0}€
-        </span>
-      </div>
+      <BookingFeeDisplay booking={booking} />
 
       <div className="flex gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
         <button
@@ -607,15 +699,12 @@ const FixBookingCard = ({ booking, onReschedule, onCancel, onNavigateToPhase }) 
 /**
  * Karte für eine stornierte Buchung
  */
-const CancelledBookingCard = ({ booking, onNavigateToPhase }) => {
+const CancelledBookingCard = ({ booking, onNavigateToProject, onNavigateToPhase }) => {
   const cancelledByFreelancer = booking.cancelledBy === 'freelancer';
   const cancelDate = booking.cancelledAt ? new Date(booking.cancelledAt).toLocaleDateString('de-DE') : '';
 
   return (
-    <div
-      className="bg-white dark:bg-gray-800 rounded-card shadow-sm p-4 mb-3 border border-gray-200 dark:border-gray-700 border-l-4 border-l-red-500 opacity-75 cursor-pointer group"
-      onClick={() => onNavigateToPhase?.(booking.projectId, booking.phaseId)}
-    >
+    <div className="bg-white dark:bg-gray-800 rounded-card shadow-sm p-4 mb-3 border border-gray-200 dark:border-gray-700 border-l-4 border-l-red-500 opacity-75">
       {/* Storniert-Banner */}
       <div className="mb-3 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm">
         <div className="flex items-center gap-2 text-red-800 dark:text-red-300 font-medium">
@@ -635,13 +724,9 @@ const CancelledBookingCard = ({ booking, onNavigateToPhase }) => {
 
       {/* Header */}
       <div className="flex justify-between items-start mb-3">
-        <div className="flex-1 min-w-0">
-          {/* Freelancer */}
-          <p className="font-semibold text-gray-500 dark:text-gray-400 line-through flex items-center gap-2">
-            {booking.freelancerName}
-            <ChevronRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </p>
-        </div>
+        <p className="font-semibold text-gray-500 dark:text-gray-400 line-through">
+          {booking.freelancerName}
+        </p>
         <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
           Storniert
         </span>
@@ -649,7 +734,12 @@ const CancelledBookingCard = ({ booking, onNavigateToPhase }) => {
 
       {/* Projekt/Phase */}
       <div className="mb-3 opacity-60">
-        <ProjectPhaseBadges projectName={booking.projectName} phaseName={booking.phaseName} />
+        <ProjectPhaseBadges
+          projectName={booking.projectName}
+          phaseName={booking.phaseName}
+          onProjectClick={() => onNavigateToProject?.(booking.projectId)}
+          onPhaseClick={() => onNavigateToPhase?.(booking.projectId, booking.phaseId)}
+        />
       </div>
 
       {/* Termine und Kosten */}

@@ -245,7 +245,7 @@ const ProjectDetail = ({
                       {PROJECT_STATUS_LABELS[project.status]}
                     </span>
                   </div>
-                  <p className="text-gray-600 dark:text-gray-400 mb-2">{project.client}</p>
+                  <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium mb-2">{project.client}</span>
                   {project.description && (
                     <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">{project.description}</p>
                   )}
@@ -315,9 +315,8 @@ const ProjectDetail = ({
             />
           ) : (
             <div className="space-y-2 text-sm">
-              <p className="font-medium text-gray-900 dark:text-white">{project.client}</p>
               {project.clientContact?.name && (
-                <p className="text-gray-600 dark:text-gray-400">{project.clientContact.name}</p>
+                <p className="font-medium text-gray-900 dark:text-white">{project.clientContact.name}</p>
               )}
               {project.clientContact?.email && (
                 <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
@@ -381,13 +380,16 @@ const ProjectDetail = ({
               Für jede Phase kannst du separat Freelancer suchen und buchen.
             </p>
 
-            <button
-              onClick={() => setShowAddPhase(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-primary/25"
-            >
-              <Plus className="w-5 h-5" />
-              Erste Phase erstellen
-            </button>
+            <div className="relative inline-flex">
+              <div className="absolute inset-0 bg-primary rounded-xl animate-ping opacity-30" style={{ animationDuration: '2s' }} />
+              <button
+                onClick={() => setShowAddPhase(true)}
+                className="relative inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-primary/25"
+              >
+                <Plus className="w-5 h-5" />
+                Erste Phase erstellen
+              </button>
+            </div>
 
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
               Du kannst später jederzeit weitere Phasen hinzufügen
@@ -437,11 +439,11 @@ const ProjectDetail = ({
       {/* Team */}
       <div className="bg-white dark:bg-gray-800 rounded-card border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">
-          Team ({team.length} Freelancer)
+          Team ({team.length})
         </h2>
 
         {team.length === 0 ? (
-          <p className="text-gray-400 text-center py-8">Noch keine Freelancer gebucht</p>
+          <p className="text-gray-400 text-center py-8">Noch niemand gebucht</p>
         ) : (
           <div className="space-y-3">
             {team.map(({ freelancer, bookings }) => (
@@ -1171,12 +1173,8 @@ const ClientEditForm = ({ data, onChange, onSave, onCancel }) => (
 const AddPhaseModal = ({ projectId, onSave, onClose }) => {
   const [formData, setFormData] = useState({
     name: '',
-    startDate: '',
-    endDate: '',
-    budget: 0,
     color: 'gray'
   });
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -1189,10 +1187,10 @@ const AddPhaseModal = ({ projectId, onSave, onClose }) => {
     <ResizableModal
       title="Neue Phase"
       onClose={onClose}
-      defaultWidth={550}
-      defaultHeight={560}
-      minWidth={450}
-      minHeight={460}
+      defaultWidth={450}
+      defaultHeight={380}
+      minWidth={350}
+      minHeight={300}
     >
       <form onSubmit={handleSubmit} className="p-4 space-y-4 flex-1 overflow-y-auto">
         <div>
@@ -1226,44 +1224,6 @@ const AddPhaseModal = ({ projectId, onSave, onClose }) => {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kosten (€)</label>
-          <input
-            type="number"
-            value={formData.budget || ''}
-            onChange={(e) => setFormData({ ...formData, budget: Number(e.target.value) })}
-            placeholder="0"
-            className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Zeitraum <span className="text-gray-400 font-normal">(optional)</span>
-          </label>
-          <button
-            type="button"
-            onClick={() => setShowDatePicker(!showDatePicker)}
-            className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 text-left flex items-center justify-between hover:border-gray-400"
-          >
-            <span className={formData.startDate ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}>
-              {formData.startDate && formData.endDate
-                ? `${formatDate(formData.startDate)} – ${formatDate(formData.endDate)}`
-                : 'Zeitraum auswählen (optional)'}
-            </span>
-            <ChevronDown className={`w-5 h-5 ${showDatePicker ? 'rotate-180' : ''}`} />
-          </button>
-          {showDatePicker && (
-            <div className="mt-2">
-              <DateRangePicker
-                startDate={formData.startDate}
-                endDate={formData.endDate}
-                onChange={({ startDate, endDate }) => setFormData({ ...formData, startDate, endDate })}
-              />
-            </div>
-          )}
-        </div>
-
         <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
           <button
             type="button"
@@ -1275,7 +1235,7 @@ const AddPhaseModal = ({ projectId, onSave, onClose }) => {
           <button
             type="submit"
             disabled={!formData.name.trim()}
-            className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+            className="flex-1 px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
           >
             Phase hinzufügen
           </button>

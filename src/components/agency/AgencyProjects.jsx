@@ -276,37 +276,14 @@ const CreateProjectModal = ({ onSave, onClose }) => {
     projectNumber: '',
     contactPerson: '',
     contactEmail: '',
-    contactPhone: '',
-    startDate: '',
-    endDate: ''
+    contactPhone: ''
   });
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (formData.name.trim() && formData.client.trim()) {
       onSave(formData);
     }
-  };
-
-  const handleDateChange = ({ startDate, endDate }) => {
-    setFormData({ ...formData, startDate, endDate });
-  };
-
-  const formatDisplayDate = (dateStr) => {
-    if (!dateStr) return '';
-    const d = parseLocalDate(dateStr);
-    const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-    return `${d.getDate()}. ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
-  };
-
-  const dateRangeDisplay = () => {
-    if (formData.startDate && formData.endDate) {
-      return `${formatDisplayDate(formData.startDate)} – ${formatDisplayDate(formData.endDate)}`;
-    } else if (formData.startDate) {
-      return `Ab ${formatDisplayDate(formData.startDate)}`;
-    }
-    return 'Zeitraum auswählen (optional)';
   };
 
   return (
@@ -419,36 +396,6 @@ const CreateProjectModal = ({ onSave, onClose }) => {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Projektzeitraum */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Projektzeitraum <span className="text-gray-400 font-normal">(optional)</span>
-          </label>
-
-          <button
-            type="button"
-            onClick={() => setShowDatePicker(!showDatePicker)}
-            className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl text-left flex items-center justify-between transition-colors bg-white dark:bg-gray-900 ${
-              showDatePicker ? 'border-primary ring-2 ring-primary/50' : 'hover:border-gray-400 dark:hover:border-gray-500'
-            }`}
-          >
-            <span className={formData.startDate ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}>
-              {dateRangeDisplay()}
-            </span>
-            <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showDatePicker ? 'rotate-180' : ''}`} />
-          </button>
-
-          {showDatePicker && (
-            <div className="mt-3">
-              <DateRangePicker
-                startDate={formData.startDate}
-                endDate={formData.endDate}
-                onChange={handleDateChange}
-              />
-            </div>
-          )}
         </div>
 
         {/* Buttons */}

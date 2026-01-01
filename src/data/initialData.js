@@ -38,112 +38,43 @@ export const PROJECT_STATUS_COLORS = {
 export const INITIAL_PROJECTS = [
   {
     id: 1,
-    name: 'Werbespot Mercedes 2025',
-    client: 'Mercedes-Benz AG',
+    name: 'Werbespot BMW i7',
+    client: 'BMW Group',
     clientContact: {
-      name: 'Thomas Schneider',
-      email: 'thomas.schneider@mercedes-benz.com',
-      phone: '+49 711 123456'
+      name: 'Stefan Berger',
+      email: 'stefan.berger@bmw.de',
+      phone: '+49 89 123456'
     },
     agencyId: 1,
     status: PROJECT_STATUS.PRE_PRODUCTION,
-    description: 'Imagespot für die neue E-Klasse. 30 Sekunden TV-Spot plus Social Media Cutdowns.',
-    startDate: '2025-01-10',
-    endDate: '2025-02-28',
+    description: '30-Sekunden TV-Spot für den neuen BMW i7. Premium-Ästhetik mit Fokus auf Elektromobilität und Innovation.',
     budget: {
-      total: 85000,
-      spent: 32000,
-      currency: 'EUR'
-    },
-    notes: 'Kunde wünscht Premium-Look. Referenz: Apple Werbung.',
-    phases: [
-      {
-        id: 101,
-        name: 'Drehphase',
-        icon: '🎬',
-        startDate: '2025-01-12',
-        endDate: '2025-01-20',
-        budget: 45000
-      },
-      {
-        id: 102,
-        name: 'Post-Production',
-        icon: '🎞️',
-        startDate: '2025-02-01',
-        endDate: '2025-02-15',
-        budget: 25000
-      }
-    ]
-  },
-  {
-    id: 2,
-    name: 'Social Media Kampagne',
-    client: 'Fashion Brand X',
-    clientContact: {
-      name: 'Lisa Braun',
-      email: 'lisa.braun@fashionbrandx.com',
-      phone: '+49 89 987654'
-    },
-    agencyId: 1,
-    status: PROJECT_STATUS.PLANNING,
-    description: 'Monatliche Content-Produktion für Instagram und TikTok.',
-    startDate: '2025-01-15',
-    endDate: '2025-01-30',
-    budget: {
-      total: 15000,
+      total: 0,
       spent: 0,
       currency: 'EUR'
     },
     notes: '',
-    phases: [
-      {
-        id: 201,
-        name: 'Content Dreh',
-        icon: '📱',
-        startDate: '2025-01-15',
-        endDate: '2025-01-20',
-        budget: 12000
-      }
-    ]
+    phases: []
   },
   {
-    id: 3,
-    name: 'Musikvideo "Neon Dreams"',
-    client: 'Independent Label',
+    id: 2,
+    name: 'Dokumentarfilm "Stadtleben"',
+    client: 'ARD Kultur',
     clientContact: {
-      name: 'Marco Richter',
-      email: 'marco@indie-label.de',
-      phone: '+49 40 555123'
+      name: 'Katrin Meier',
+      email: 'katrin.meier@ard.de',
+      phone: '+49 30 987654'
     },
-    agencyId: 2,
-    status: PROJECT_STATUS.PRE_PRODUCTION,
-    description: 'Offizielles Musikvideo für aufstrebende Band. Cyberpunk-Ästhetik mit praktischen Effekten.',
-    startDate: '2025-01-15',
-    endDate: '2025-01-25',
+    agencyId: 1,
+    status: PROJECT_STATUS.PLANNING,
+    description: 'Dokumentation über das urbane Leben in deutschen Großstädten. Portrait von Menschen und ihren Geschichten.',
     budget: {
-      total: 25000,
-      spent: 5000,
+      total: 0,
+      spent: 0,
       currency: 'EUR'
     },
-    notes: 'Nachtdreh geplant. Neon-Lichter und Nebel.',
-    phases: [
-      {
-        id: 301,
-        name: 'Dreh',
-        icon: '🎥',
-        startDate: '2025-01-18',
-        endDate: '2025-01-20',
-        budget: 15000
-      },
-      {
-        id: 302,
-        name: 'Post & Grading',
-        icon: '🎨',
-        startDate: '2025-01-21',
-        endDate: '2025-01-25',
-        budget: 8000
-      }
-    ]
+    notes: '',
+    phases: []
   }
 ];
 

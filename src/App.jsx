@@ -697,6 +697,11 @@ const App = () => {
               onReschedule={handleOpenRescheduleModal}
               onCancel={handleOpenCancelModal}
               onWithdrawReschedule={withdrawReschedule}
+              onNavigateToProject={(projectId) => {
+                setSelectedProjectId(projectId);
+                setSelectedPhaseId(null);
+                setCurrentView('projects');
+              }}
               onNavigateToPhase={(projectId, phaseId) => {
                 setSelectedProjectId(projectId);
                 setSelectedPhaseId(phaseId);

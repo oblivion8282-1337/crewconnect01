@@ -90,7 +90,11 @@ export const useProjects = () => {
         spent: 0,
         currency: 'EUR'
       },
-      clientContact: projectData.clientContact || { name: '', email: '', phone: '' },
+      clientContact: projectData.clientContact || {
+        name: projectData.contactPerson || '',
+        email: projectData.contactEmail || '',
+        phone: projectData.contactPhone || ''
+      },
       notes: projectData.notes || '',
       phases: []
     };

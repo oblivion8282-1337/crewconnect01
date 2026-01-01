@@ -320,13 +320,19 @@ const CancelledBookingCard = ({ booking }) => {
 
       {/* Footer */}
       <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700">
-        <div>
-          <span className="font-bold text-gray-400 dark:text-gray-500 text-lg line-through">
-            {booking.totalCost?.toLocaleString('de-DE')}€
-          </span>
-          <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
-            ({booking.dates.length} Tage)
-          </span>
+        <div className="line-through text-gray-400 dark:text-gray-500">
+          {booking.rateType === 'flat' ? (
+            <>
+              <span className="text-xs">Pauschal: </span>
+              <span className="font-bold text-lg">{booking.totalCost?.toLocaleString('de-DE')}€</span>
+              <span className="text-xs ml-2">({booking.dates.length} Tage)</span>
+            </>
+          ) : (
+            <>
+              <span className="text-xs">{booking.dayRate?.toLocaleString('de-DE')}€ × {booking.dates.length} Tage = </span>
+              <span className="font-bold text-lg">{booking.totalCost?.toLocaleString('de-DE')}€</span>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -726,10 +732,20 @@ const StandardContent = ({ booking, conflict, onAccept, onDecline, onCancel }) =
 
       <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
         <div>
-          <span className="font-bold text-gray-900 dark:text-white text-lg">{booking.totalCost?.toLocaleString('de-DE')}€</span>
-          <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-            ({booking.dates.length} Tage)
-          </span>
+          {booking.rateType === 'flat' ? (
+            <>
+              <span className="text-xs text-gray-500 dark:text-gray-400">Pauschal: </span>
+              <span className="font-bold text-gray-900 dark:text-white text-lg">{booking.totalCost?.toLocaleString('de-DE')}€</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                ({booking.dates.length} Tage)
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{booking.dayRate?.toLocaleString('de-DE')}€ × {booking.dates.length} Tage = </span>
+              <span className="font-bold text-gray-900 dark:text-white text-lg">{booking.totalCost?.toLocaleString('de-DE')}€</span>
+            </>
+          )}
         </div>
 
         {isPending && (
