@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ChevronRight,
+  ArrowLeft,
   Users,
   Calendar,
   Euro,
@@ -16,17 +17,158 @@ import {
   Package,
   ZoomIn,
   ZoomOut,
-  RotateCcw,
-  AlertTriangle
+  RotateCcw
 } from 'lucide-react';
 import FreelancerSearchModal from '../modals/FreelancerSearchModal';
+import { ProfileAvatar } from '../shared/ProfileField';
 import { formatDate } from '../../utils/dateUtils';
+import { useUnsavedChangesContext } from '../../contexts/UnsavedChangesContext';
 import {
   BOOKING_STATUS,
   isPendingStatus,
   isConfirmedStatus,
   isFixStatus
 } from '../../constants/calendar';
+
+// Vordefinierte Farben für Phasen (sync mit ProjectDetail.jsx)
+const PHASE_COLORS = [
+  { id: 'gray', bg: 'bg-gray-50 dark:bg-gray-800', border: 'border-gray-200 dark:border-gray-700', preview: 'bg-gray-200 dark:bg-gray-600', glow: 'gray', text: 'text-gray-700 dark:text-gray-300' },
+  { id: 'blue', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', preview: 'bg-blue-400', glow: '#3b82f6', text: 'text-blue-700 dark:text-blue-300' },
+  { id: 'emerald', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', preview: 'bg-emerald-400', glow: '#10b981', text: 'text-emerald-700 dark:text-emerald-300' },
+  { id: 'amber', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', preview: 'bg-amber-400', glow: '#f59e0b', text: 'text-amber-700 dark:text-amber-300' },
+  { id: 'violet', bg: 'bg-violet-50 dark:bg-violet-900/20', border: 'border-violet-200 dark:border-violet-800', preview: 'bg-violet-400', glow: '#8b5cf6', text: 'text-violet-700 dark:text-violet-300' },
+  { id: 'rose', bg: 'bg-rose-50 dark:bg-rose-900/20', border: 'border-rose-200 dark:border-rose-800', preview: 'bg-rose-400', glow: '#f43f5e', text: 'text-rose-700 dark:text-rose-300' },
+  { id: 'cyan', bg: 'bg-cyan-50 dark:bg-cyan-900/20', border: 'border-cyan-200 dark:border-cyan-800', preview: 'bg-cyan-400', glow: '#06b6d4', text: 'text-cyan-700 dark:text-cyan-300' },
+  { id: 'orange', bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-800', preview: 'bg-orange-400', glow: '#f97316', text: 'text-orange-700 dark:text-orange-300' }
+];
+
+// Hilfsfunktion um Hex-Farbe aufzuhellen (für Hintergrund)
+const hexToRgba = (hex, alpha) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+/**
+ * TeamMemberCard - Karte für ein Team-Mitglied
+ */
+const TeamMemberCard = ({ freelancer, memberBookings, onWithdraw, onConvertToFix, onReschedule, accentColor }) => {
+  const totalDays = memberBookings.reduce((sum, b) => sum + b.dates.length, 0);
+  const totalCost = memberBookings.reduce((sum, b) => sum + (b.totalCost || b.dates.length * (b.dailyRate || 500)), 0);
+
+  const borderColors = {
+    violet: 'border-l-violet-500',
+    orange: 'border-l-orange-500',
+    amber: 'border-l-amber-500',
+    emerald: 'border-l-emerald-500'
+  };
+
+  return (
+    <div className={`p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border-l-4 ${borderColors[accentColor]}`}>
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-4">
+          <ProfileAvatar
+            imageUrl={freelancer.profileImage}
+            firstName={freelancer.firstName}
+            lastName={freelancer.lastName}
+            size="lg"
+          />
+          <div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              {freelancer.firstName} {freelancer.lastName}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{freelancer.professions?.[0]}</p>
+            <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-gray-500">
+              {freelancer.email && (
+                <span className="flex items-center gap-1">
+                  <Mail className="w-3 h-3" />
+                  {freelancer.email}
+                </span>
+              )}
+              {freelancer.phone && (
+                <span className="flex items-center gap-1">
+                  <Phone className="w-3 h-3" />
+                  {freelancer.phone}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="text-right">
+          <p className="font-semibold text-gray-900 dark:text-white">{totalDays} Tage</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{totalCost.toLocaleString('de-DE')} €</p>
+        </div>
+      </div>
+
+      {/* Buchungs-Details */}
+      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+        {memberBookings.map(booking => (
+          <div key={booking.id} className="flex justify-between items-center text-sm">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+              {formatDate(booking.dates[0])} – {formatDate(booking.dates[booking.dates.length - 1])}
+              <span className="text-gray-400 dark:text-gray-500">({booking.dates.length} Tage)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {isPendingStatus(booking.status) && (
+                <>
+                  <button
+                    onClick={() => onReschedule?.(booking)}
+                    className="px-3 py-1 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Verschieben
+                  </button>
+                  <button
+                    onClick={() => onWithdraw(booking)}
+                    className="px-3 py-1 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Zurückziehen
+                  </button>
+                </>
+              )}
+              {booking.status === BOOKING_STATUS.OPTION_CONFIRMED && (
+                <>
+                  <button
+                    onClick={() => onReschedule?.(booking)}
+                    className="px-3 py-1 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Verschieben
+                  </button>
+                  <button
+                    onClick={() => onConvertToFix(booking)}
+                    className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs hover:bg-emerald-700"
+                  >
+                    Fix buchen
+                  </button>
+                </>
+              )}
+              {booking.status === BOOKING_STATUS.FIX_CONFIRMED && (
+                <>
+                  <button
+                    onClick={() => onReschedule?.(booking)}
+                    className="px-3 py-1 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Verschieben
+                  </button>
+                  <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs">
+                    Fix bestätigt
+                  </span>
+                </>
+              )}
+              {booking.rescheduleRequest && (
+                <span className="px-3 py-1 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-lg text-xs">
+                  Verschiebung angefragt
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 /**
  * PhaseDetail - Detailansicht einer Projektphase
@@ -46,6 +188,7 @@ const PhaseDetail = ({
   onBook,
   onConvertToFix,
   onWithdraw,
+  onReschedule,
   onUpdatePhase,
   // Favoriten & Crew-Listen Props
   isFavorite,
@@ -63,7 +206,46 @@ const PhaseDetail = ({
   const [tasks, setTasks] = useState(phase.tasks || []);
   const [newTask, setNewTask] = useState('');
   const [showSearch, setShowSearch] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(2); // 0=klein, 1=mittel, 2=normal, 3=groß, 4=sehr groß
+  const [zoomLevel, setZoomLevel] = useState(2); // 0=fit-all, 1=klein, 2=mittel, 3=normal, 4=groß
+  const [containerWidth, setContainerWidth] = useState(800);
+  const timelineContainerRef = useRef(null);
+
+  // Ungespeicherte Änderungen tracken (für neue Aufgabe im Input - globaler Context)
+  const { setUnsaved, clearUnsaved, confirmNavigation } = useUnsavedChangesContext();
+
+  // Wenn eine neue Aufgabe getippt wurde aber noch nicht hinzugefügt
+  useEffect(() => {
+    setUnsaved(newTask.trim().length > 0);
+  }, [newTask, setUnsaved]);
+
+  // Sichere Navigation mit Warnung bei ungespeicherten Änderungen
+  const handleSafeBack = () => {
+    if (confirmNavigation('Du hast eine nicht gespeicherte Aufgabe. Möchtest du wirklich zurück?')) {
+      setNewTask('');
+      clearUnsaved();
+      onBack();
+    }
+  };
+
+  const handleSafeBackToProjects = () => {
+    if (confirmNavigation('Du hast eine nicht gespeicherte Aufgabe. Möchtest du wirklich zurück?')) {
+      setNewTask('');
+      clearUnsaved();
+      onBackToProjects();
+    }
+  };
+
+  // Measure container width for "fit all" zoom mode
+  useEffect(() => {
+    const updateWidth = () => {
+      if (timelineContainerRef.current) {
+        setContainerWidth(timelineContainerRef.current.clientWidth);
+      }
+    };
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, [activeTab]);
 
   // Buchungen für diese Phase
   const phaseBookings = useMemo(() =>
@@ -107,18 +289,40 @@ const PhaseDetail = ({
     return Array.from(teamMap.values());
   }, [phaseBookings, freelancers]);
 
-  // Budget-Berechnung für Phase
-  const budgetInfo = useMemo(() => {
-    const total = phase.budget || 0;
+  // Team nach Status gruppiert
+  const groupedTeam = useMemo(() => {
+    const groups = {
+      pending: [],      // Ausstehend
+      rescheduling: [], // Verschiebungen
+      optioned: [],     // Optioniert
+      confirmed: []     // Bestätigt
+    };
 
-    // Berechne Kosten basierend auf Buchungen
+    team.forEach(member => {
+      const { bookings: memberBookings } = member;
+
+      // Kategorisiere nach höchster Priorität
+      if (memberBookings.some(b => isPendingStatus(b.status))) {
+        groups.pending.push(member);
+      } else if (memberBookings.some(b => b.rescheduleRequest)) {
+        groups.rescheduling.push(member);
+      } else if (memberBookings.some(b => b.status === BOOKING_STATUS.OPTION_CONFIRMED)) {
+        groups.optioned.push(member);
+      } else {
+        groups.confirmed.push(member);
+      }
+    });
+
+    return groups;
+  }, [team]);
+
+  // Budget-Berechnung für Phase (basierend auf tatsächlichen Buchungskosten)
+  const budgetInfo = useMemo(() => {
     let committed = 0;
     let pending = 0;
 
     phaseBookings.forEach(booking => {
-      const days = booking.dates.length;
-      const rate = booking.dailyRate || 500; // Default Tagessatz
-      const cost = days * rate;
+      const cost = booking.totalCost || 0;
 
       if (isConfirmedStatus(booking.status)) {
         committed += cost;
@@ -127,11 +331,10 @@ const PhaseDetail = ({
       }
     });
 
-    const remaining = total - committed - pending;
-    const percentUsed = total > 0 ? Math.round(((committed + pending) / total) * 100) : 0;
+    const total = committed + pending;
 
-    return { total, committed, pending, remaining, percentUsed };
-  }, [phase.budget, phaseBookings]);
+    return { total, committed, pending };
+  }, [phaseBookings]);
 
   // Berechne effektiven Phasenzeitraum aus Buchungen und/oder manuellen Daten
   const effectiveDateRange = useMemo(() => {
@@ -189,6 +392,23 @@ const PhaseDetail = ({
     return days;
   }, [effectiveDateRange, phaseBookings, freelancers]);
 
+  // Calculate cell width based on zoom level (0 = fit all)
+  const getCellWidth = useMemo(() => {
+    const nameColumnWidth = 240;
+    const availableWidth = containerWidth - nameColumnWidth - 20; // 20px buffer
+    const numDays = timelineData.length || 1;
+
+    // Zoom 0 = fit all, otherwise use fixed widths
+    const fixedWidths = [24, 32, 44, 56, 72];
+
+    if (zoomLevel === 0) {
+      // Calculate width to fit all days, with minimum of 16px per day
+      return Math.max(16, Math.floor(availableWidth / numDays));
+    }
+
+    return fixedWidths[zoomLevel - 1] || 32;
+  }, [zoomLevel, containerWidth, timelineData.length]);
+
   // Task-Management
   const handleAddTask = () => {
     if (!newTask.trim()) return;
@@ -219,25 +439,62 @@ const PhaseDetail = ({
     { id: 'tasks', label: 'Aufgaben', icon: CheckSquare, count: tasks.filter(t => !t.completed).length }
   ];
 
+  // Projekt-Farbe für Breadcrumb
+  const isProjectCustomColor = project.color?.startsWith('#');
+  const projectColorDef = isProjectCustomColor
+    ? null
+    : (PHASE_COLORS.find(c => c.id === project.color) || PHASE_COLORS[1]); // Default: blue
+
+  const projectBreadcrumbStyle = isProjectCustomColor ? {
+    backgroundColor: hexToRgba(project.color, 0.15),
+    color: project.color,
+    borderColor: hexToRgba(project.color, 0.3)
+  } : {};
+
+  const projectBreadcrumbClass = isProjectCustomColor
+    ? 'border'
+    : `${projectColorDef.bg} ${projectColorDef.text} ${projectColorDef.border}`;
+
+  // Phase-Farbe für Breadcrumb
+  const isPhaseCustomColor = phase.color?.startsWith('#');
+  const phaseColorDef = isPhaseCustomColor
+    ? null
+    : (PHASE_COLORS.find(c => c.id === phase.color) || PHASE_COLORS[0]); // Default: gray
+
+  const phaseBreadcrumbStyle = isPhaseCustomColor ? {
+    backgroundColor: hexToRgba(phase.color, 0.15),
+    color: phase.color,
+    borderColor: hexToRgba(phase.color, 0.3)
+  } : {};
+
+  const phaseBreadcrumbClass = isPhaseCustomColor
+    ? 'border'
+    : `${phaseColorDef.bg} ${phaseColorDef.text} ${phaseColorDef.border}`;
+
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Breadcrumb Navigation */}
-      <nav className="flex items-center gap-2 text-sm mb-6">
+      {/* Breadcrumb Navigation - mit Projekt- und Phasenfarben */}
+      <nav className="flex items-center gap-3 mb-6">
         <button
-          onClick={onBackToProjects}
-          className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+          onClick={handleSafeBackToProjects}
+          className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
         >
+          <ArrowLeft className="w-4 h-4" />
           Projekte
         </button>
-        <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        <span className="text-gray-400 dark:text-gray-500">→</span>
         <button
-          onClick={onBack}
-          className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+          onClick={handleSafeBack}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors hover:opacity-80 ${projectBreadcrumbClass}`}
+          style={projectBreadcrumbStyle}
         >
           {project.name}
         </button>
-        <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-        <span className="text-gray-900 dark:text-white font-medium">
+        <span className="text-gray-400 dark:text-gray-500">→</span>
+        <span
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${phaseBreadcrumbClass}`}
+          style={phaseBreadcrumbStyle}
+        >
           {phase.name}
         </span>
       </nav>
@@ -255,7 +512,7 @@ const PhaseDetail = ({
           </div>
           <button
             onClick={() => setShowSearch(true)}
-            className="px-4 py-2.5 bg-gray-900 dark:bg-gray-100 dark:text-gray-900 text-white rounded-xl text-sm font-medium flex items-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+            className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium flex items-center gap-2 hover:opacity-90 transition-all hover:shadow-[0_0_15px_var(--color-primary)]"
           >
             <UserPlus className="w-4 h-4" />
             Freelancer buchen
@@ -297,7 +554,7 @@ const PhaseDetail = ({
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 text-sm transition-all ${
                 isActive
-                  ? 'bg-gray-900 dark:bg-gray-100 dark:text-gray-900 text-white'
+                  ? 'bg-primary text-primary-foreground shadow-[0_0_10px_var(--color-primary)]'
                   : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
@@ -305,7 +562,7 @@ const PhaseDetail = ({
               {tab.label}
               {tab.count !== undefined && tab.count > 0 && (
                 <span className={`px-2 py-0.5 text-xs rounded-full ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                 }`}>
                   {tab.count}
                 </span>
@@ -328,104 +585,124 @@ const PhaseDetail = ({
                 <p className="text-gray-500 dark:text-gray-400">Noch keine Freelancer gebucht</p>
                 <button
                   onClick={() => setShowSearch(true)}
-                  className="mt-4 px-4 py-2 bg-gray-900 dark:bg-gray-100 dark:text-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-200"
+                  className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-all hover:shadow-[0_0_15px_var(--color-primary)]"
                 >
                   Freelancer suchen
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
-                {team.map(({ freelancer, bookings: memberBookings }) => {
-                  const totalDays = memberBookings.reduce((sum, b) => sum + b.dates.length, 0);
-                  const totalCost = memberBookings.reduce((sum, b) => sum + (b.dates.length * (b.dailyRate || 500)), 0);
-                  const hasOption = memberBookings.some(b => b.status === BOOKING_STATUS.OPTION_CONFIRMED);
-                  const hasFix = memberBookings.some(b => b.status === BOOKING_STATUS.FIX_CONFIRMED);
-                  const hasPending = memberBookings.some(b => isPendingStatus(b.status));
-
-                  return (
-                    <div key={freelancer.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center text-2xl">
-                            {freelancer.avatar}
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white">
-                              {freelancer.firstName} {freelancer.lastName}
-                            </h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{freelancer.professions?.[0]}</p>
-                            <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-gray-500">
-                              {freelancer.email && (
-                                <span className="flex items-center gap-1">
-                                  <Mail className="w-3 h-3" />
-                                  {freelancer.email}
-                                </span>
-                              )}
-                              {freelancer.phone && (
-                                <span className="flex items-center gap-1">
-                                  <Phone className="w-3 h-3" />
-                                  {freelancer.phone}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-900 dark:text-white">{totalDays} Tage</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">{totalCost.toLocaleString('de-DE')} €</p>
-                          <div className="flex gap-1 mt-2 justify-end">
-                            {hasFix && (
-                              <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-medium border border-emerald-100 dark:border-emerald-800">Fix</span>
-                            )}
-                            {hasOption && (
-                              <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-xs font-medium border border-amber-100 dark:border-amber-800">Option</span>
-                            )}
-                            {hasPending && (
-                              <span className="px-2 py-0.5 bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-lg text-xs font-medium border border-violet-100 dark:border-violet-800">Pending</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Buchungs-Details */}
-                      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
-                        {memberBookings.map(booking => (
-                          <div key={booking.id} className="flex justify-between items-center text-sm">
-                            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                              <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                              {formatDate(booking.dates[0])} – {formatDate(booking.dates[booking.dates.length - 1])}
-                              <span className="text-gray-400 dark:text-gray-500">({booking.dates.length} Tage)</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {isPendingStatus(booking.status) && (
-                                <button
-                                  onClick={() => onWithdraw(booking)}
-                                  className="px-3 py-1 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-gray-700"
-                                >
-                                  Zurückziehen
-                                </button>
-                              )}
-                              {booking.status === BOOKING_STATUS.OPTION_CONFIRMED && (
-                                <button
-                                  onClick={() => onConvertToFix(booking)}
-                                  className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs hover:bg-emerald-700"
-                                >
-                                  Fix buchen
-                                </button>
-                              )}
-                              {booking.status === BOOKING_STATUS.FIX_CONFIRMED && (
-                                <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs">
-                                  Fix bestätigt
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+              <div className="space-y-8">
+                {/* Ausstehend */}
+                {groupedTeam.pending.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-3 h-3 rounded-full bg-violet-500"></div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">
+                        Ausstehend
+                      </h3>
+                      <span className="px-2 py-0.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full text-xs font-medium">
+                        {groupedTeam.pending.length}
+                      </span>
                     </div>
-                  );
-                })}
+                    <div className="space-y-3">
+                      {groupedTeam.pending.map(({ freelancer, bookings: memberBookings }) => (
+                        <TeamMemberCard
+                          key={freelancer.id}
+                          freelancer={freelancer}
+                          memberBookings={memberBookings}
+                          onWithdraw={onWithdraw}
+                          onConvertToFix={onConvertToFix}
+                          onReschedule={onReschedule}
+                          accentColor="violet"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Verschiebungen */}
+                {groupedTeam.rescheduling.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">
+                        Verschiebungen
+                      </h3>
+                      <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-full text-xs font-medium">
+                        {groupedTeam.rescheduling.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {groupedTeam.rescheduling.map(({ freelancer, bookings: memberBookings }) => (
+                        <TeamMemberCard
+                          key={freelancer.id}
+                          freelancer={freelancer}
+                          memberBookings={memberBookings}
+                          onWithdraw={onWithdraw}
+                          onConvertToFix={onConvertToFix}
+                          onReschedule={onReschedule}
+                          accentColor="orange"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Optioniert */}
+                {groupedTeam.optioned.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">
+                        Optioniert
+                      </h3>
+                      <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-medium">
+                        {groupedTeam.optioned.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {groupedTeam.optioned.map(({ freelancer, bookings: memberBookings }) => (
+                        <TeamMemberCard
+                          key={freelancer.id}
+                          freelancer={freelancer}
+                          memberBookings={memberBookings}
+                          onWithdraw={onWithdraw}
+                          onConvertToFix={onConvertToFix}
+                          onReschedule={onReschedule}
+                          accentColor="amber"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bestätigt */}
+                {groupedTeam.confirmed.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">
+                        Bestätigt
+                      </h3>
+                      <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-medium">
+                        {groupedTeam.confirmed.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {groupedTeam.confirmed.map(({ freelancer, bookings: memberBookings }) => (
+                        <TeamMemberCard
+                          key={freelancer.id}
+                          freelancer={freelancer}
+                          memberBookings={memberBookings}
+                          onWithdraw={onWithdraw}
+                          onConvertToFix={onConvertToFix}
+                          onReschedule={onReschedule}
+                          accentColor="emerald"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -518,7 +795,7 @@ const PhaseDetail = ({
                 </p>
                 <button
                   onClick={() => setShowSearch(true)}
-                  className="mt-4 px-4 py-2 bg-gray-900 dark:bg-gray-100 dark:text-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-200"
+                  className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-all hover:shadow-[0_0_15px_var(--color-primary)]"
                 >
                   Freelancer buchen
                 </button>
@@ -526,16 +803,71 @@ const PhaseDetail = ({
             ) : (
               <>
                 {/* Timeline Container mit Sticky Names */}
-                <div className="relative border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-900">
+                <div
+                  ref={timelineContainerRef}
+                  className="relative border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-900"
+                >
                   {/* Scrollable Container */}
                   <div className="overflow-x-auto">
                     <div className="min-w-max">
-                      {/* Header Row */}
+                      {/* Month Header Row */}
+                      <div className="flex bg-gray-100 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                        {/* Sticky empty cell for name column */}
+                        <div
+                          className="sticky left-0 z-20 bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700"
+                          style={{ width: '240px', minWidth: '240px' }}
+                        />
+                        {/* Month spans */}
+                        <div className="flex">
+                          {(() => {
+                            const months = [];
+                            let currentMonth = null;
+                            let startIndex = 0;
+
+                            timelineData.forEach((day, index) => {
+                              const monthKey = `${day.date.getFullYear()}-${day.date.getMonth()}`;
+                              if (monthKey !== currentMonth) {
+                                if (currentMonth !== null) {
+                                  months.push({
+                                    key: currentMonth,
+                                    label: timelineData[startIndex].date.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }),
+                                    span: index - startIndex
+                                  });
+                                }
+                                currentMonth = monthKey;
+                                startIndex = index;
+                              }
+                            });
+                            // Push last month
+                            if (currentMonth !== null) {
+                              months.push({
+                                key: currentMonth,
+                                label: timelineData[startIndex].date.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }),
+                                span: timelineData.length - startIndex
+                              });
+                            }
+
+                            return months.map((month, idx) => (
+                              <div
+                                key={month.key}
+                                className={`flex items-center justify-center py-1.5 text-xs font-semibold text-primary border-r border-gray-200 dark:border-gray-700 ${
+                                  idx > 0 ? 'border-l-2 border-l-primary/30' : ''
+                                }`}
+                                style={{ width: `${month.span * getCellWidth}px`, minWidth: `${month.span * getCellWidth}px` }}
+                              >
+                                {month.label}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Date Header Row */}
                       <div className="flex bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                         {/* Sticky Name Column Header */}
                         <div
                           className="sticky left-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex items-center px-4"
-                          style={{ width: '180px', minWidth: '180px' }}
+                          style={{ width: '240px', minWidth: '240px' }}
                         >
                           <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Team
@@ -547,25 +879,20 @@ const PhaseDetail = ({
                           {timelineData.map((day, index) => {
                             const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6;
                             const isFirstOfMonth = day.date.getDate() === 1;
-                            const cellWidth = [24, 32, 44, 56, 72][zoomLevel];
 
                             return (
                               <div
                                 key={day.dateStr}
-                                className={`flex flex-col items-center justify-center py-3 border-r border-gray-100 dark:border-gray-700 ${
+                                className={`flex flex-col items-center justify-center py-2 border-r border-gray-100 dark:border-gray-700 ${
                                   isWeekend ? 'bg-gray-50 dark:bg-gray-900' : ''
                                 } ${isFirstOfMonth ? 'border-l-2 border-l-gray-300 dark:border-l-gray-600' : ''}`}
-                                style={{ width: `${cellWidth}px`, minWidth: `${cellWidth}px` }}
+                                style={{ width: `${getCellWidth}px`, minWidth: `${getCellWidth}px` }}
                               >
-                                {/* Month indicator on first of month or first cell */}
-                                {(isFirstOfMonth || index === 0) && zoomLevel >= 2 && (
-                                  <div className="text-[10px] font-medium text-gray-400 dark:text-gray-500 mb-0.5">
-                                    {day.date.toLocaleDateString('de-DE', { month: 'short' })}
+                                {getCellWidth >= 28 && (
+                                  <div className={`text-[10px] font-medium ${isWeekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'}`}>
+                                    {day.date.toLocaleDateString('de-DE', { weekday: getCellWidth >= 40 ? 'short' : 'narrow' })}
                                   </div>
                                 )}
-                                <div className={`text-[10px] font-medium ${isWeekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'}`}>
-                                  {day.date.toLocaleDateString('de-DE', { weekday: zoomLevel >= 2 ? 'short' : 'narrow' })}
-                                </div>
                                 <div className={`text-sm font-bold ${isWeekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}`}>
                                   {day.date.getDate()}
                                 </div>
@@ -584,35 +911,36 @@ const PhaseDetail = ({
                         team.map(({ freelancer, bookings: memberBookings }, rowIndex) => (
                           <div
                             key={freelancer.id}
-                            className={`flex ${rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50/50 dark:bg-gray-800/50'} hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-colors`}
+                            className="flex bg-white dark:bg-gray-800 hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-colors"
                           >
                             {/* Sticky Name Column */}
                             <div
-                              className={`sticky left-0 z-10 border-r border-gray-200 dark:border-gray-700 flex items-center gap-3 px-4 py-3 ${
-                                rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900'
-                              }`}
-                              style={{ width: '180px', minWidth: '180px' }}
+                              className="sticky left-0 z-10 border-r border-gray-200 dark:border-gray-700 flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800"
+                              style={{ width: '240px', minWidth: '240px' }}
                             >
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-lg flex-shrink-0">
-                                {freelancer.avatar}
+                              <div className="flex-shrink-0">
+                                <ProfileAvatar
+                                  imageUrl={freelancer.profileImage}
+                                  firstName={freelancer.firstName}
+                                  lastName={freelancer.lastName}
+                                  size="sm"
+                                />
                               </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                  {freelancer.firstName} {freelancer.lastName?.[0]}.
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {freelancer.firstName} {freelancer.lastName}
                                 </p>
-                                <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                   {freelancer.professions?.[0] || 'Freelancer'}
                                 </p>
                               </div>
                             </div>
 
                             {/* Day Cells */}
-                            <div className="flex">
+                            <div className="flex items-stretch">
                               {timelineData.map(day => {
                                 const booking = memberBookings.find(b => b.dates.includes(day.dateStr));
                                 const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6;
-                                const cellWidth = [24, 32, 44, 56, 72][zoomLevel];
-                                const cellHeight = [28, 32, 40, 48, 56][zoomLevel];
 
                                 // Determine if this is start/middle/end of a booking block
                                 const isBookingStart = booking && !memberBookings.some(b =>
@@ -624,7 +952,6 @@ const PhaseDetail = ({
                                   b.dates.includes(new Date(new Date(day.dateStr).setDate(day.date.getDate() + 1)).toISOString().split('T')[0])
                                 );
 
-                                let bgColor = isWeekend ? 'bg-gray-100 dark:bg-gray-700' : 'bg-transparent';
                                 let statusColor = '';
 
                                 if (booking) {
@@ -640,20 +967,18 @@ const PhaseDetail = ({
                                 return (
                                   <div
                                     key={day.dateStr}
-                                    className={`border-r border-gray-100 dark:border-gray-700 flex items-center justify-center p-0.5 ${bgColor}`}
-                                    style={{ width: `${cellWidth}px`, minWidth: `${cellWidth}px`, height: `${cellHeight}px` }}
+                                    className={`border-r border-gray-100 dark:border-gray-700 flex items-center justify-center py-1.5 px-0.5 ${isWeekend ? 'bg-gray-100/50 dark:bg-gray-700/30' : ''}`}
+                                    style={{ width: `${getCellWidth}px`, minWidth: `${getCellWidth}px` }}
                                   >
-                                    {booking ? (
+                                    {booking && (
                                       <div
-                                        className={`w-full h-full ${statusColor} ${
+                                        className={`w-full h-full min-h-[28px] ${statusColor} ${
                                           isBookingStart && isBookingEnd ? 'rounded-lg' :
                                           isBookingStart ? 'rounded-l-lg' :
                                           isBookingEnd ? 'rounded-r-lg' : ''
                                         } transition-all hover:scale-105 hover:z-10 cursor-pointer`}
                                         title={`${freelancer.firstName} ${freelancer.lastName}\n${booking.status}\n${formatDate(booking.dates[0])} - ${formatDate(booking.dates[booking.dates.length - 1])}`}
                                       />
-                                    ) : (
-                                      <div className={`w-full h-full rounded ${isWeekend ? '' : 'bg-gray-50 dark:bg-gray-900'}`} />
                                     )}
                                   </div>
                                 );
@@ -698,7 +1023,7 @@ const PhaseDetail = ({
           <div className="p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Budget-Tracking</h2>
 
-            <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
                 <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Gesamt</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
@@ -712,48 +1037,38 @@ const PhaseDetail = ({
                 </p>
               </div>
               <div className="p-4 bg-violet-50 dark:bg-violet-900/20 rounded-xl border border-violet-100 dark:border-violet-800">
-                <p className="text-xs font-medium text-violet-600 dark:text-violet-400 uppercase tracking-wider">Pending</p>
+                <p className="text-xs font-medium text-violet-600 dark:text-violet-400 uppercase tracking-wider">Angefragt</p>
                 <p className="text-2xl font-bold text-violet-700 dark:text-violet-300 mt-1">
                   {budgetInfo.pending.toLocaleString('de-DE')} €
                 </p>
               </div>
-              <div className={`p-4 rounded-xl ${budgetInfo.remaining < 0 ? 'bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800' : 'bg-gray-50 dark:bg-gray-900'}`}>
-                <p className={`text-xs font-medium uppercase tracking-wider ${budgetInfo.remaining < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                  Verbleibend
-                </p>
-                <p className={`text-2xl font-bold mt-1 ${budgetInfo.remaining < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
-                  {budgetInfo.remaining.toLocaleString('de-DE')} €
-                </p>
-              </div>
             </div>
 
-            {/* Budget-Balken */}
-            <div className="mb-8">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-500 dark:text-gray-400">Budget-Auslastung</span>
-                <span className="font-medium text-gray-900 dark:text-white">{budgetInfo.percentUsed}%</span>
+            {/* Aufteilung Balken */}
+            {budgetInfo.total > 0 && (
+              <div className="mb-8">
+                <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden flex">
+                  <div
+                    className="h-full bg-emerald-500 transition-all"
+                    style={{ width: `${(budgetInfo.committed / budgetInfo.total) * 100}%` }}
+                  />
+                  <div
+                    className="h-full bg-violet-400 transition-all"
+                    style={{ width: `${(budgetInfo.pending / budgetInfo.total) * 100}%` }}
+                  />
+                </div>
+                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  <span className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded bg-emerald-500"></span>
+                    Bestätigt
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded bg-violet-400"></span>
+                    Angefragt
+                  </span>
+                </div>
               </div>
-              <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden flex">
-                <div
-                  className="h-full bg-emerald-500 transition-all"
-                  style={{ width: `${Math.min((budgetInfo.committed / budgetInfo.total) * 100, 100)}%` }}
-                />
-                <div
-                  className="h-full bg-violet-400 transition-all"
-                  style={{ width: `${Math.min((budgetInfo.pending / budgetInfo.total) * 100, 100 - (budgetInfo.committed / budgetInfo.total) * 100)}%` }}
-                />
-              </div>
-              <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded bg-emerald-500"></span>
-                  Bestätigt
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded bg-violet-400"></span>
-                  Pending
-                </span>
-              </div>
-            </div>
+            )}
 
             {/* Kosten-Aufschlüsselung */}
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Kosten-Aufschlüsselung</h3>
@@ -766,20 +1081,31 @@ const PhaseDetail = ({
                   if (!freelancer) return null;
 
                   const days = booking.dates.length;
-                  const rate = booking.dailyRate || 500;
-                  const cost = days * rate;
+                  const cost = booking.totalCost || 0;
                   const isConfirmed = isConfirmedStatus(booking.status);
+
+                  // Berechne Tagessatz für Anzeige
+                  const isFlat = booking.rateType === 'flat';
+                  const displayRate = isFlat ? null : (days > 0 ? Math.round(cost / days) : 0);
 
                   return (
                     <div key={booking.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                       <div className="flex items-center gap-3">
-                        <span className="text-lg">{freelancer.avatar}</span>
+                        <ProfileAvatar
+                          imageUrl={freelancer.profileImage}
+                          firstName={freelancer.firstName}
+                          lastName={freelancer.lastName}
+                          size="sm"
+                        />
                         <div>
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
                             {freelancer.firstName} {freelancer.lastName}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {days} Tage × {rate.toLocaleString('de-DE')} €
+                            {isFlat
+                              ? `Pauschal für ${days} Tage`
+                              : `${days} Tage × ${displayRate?.toLocaleString('de-DE')} €`
+                            }
                           </p>
                         </div>
                       </div>
@@ -790,7 +1116,7 @@ const PhaseDetail = ({
                             ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                             : 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400'
                         }`}>
-                          {isConfirmed ? 'Bestätigt' : 'Pending'}
+                          {isConfirmed ? 'Bestätigt' : 'Angefragt'}
                         </span>
                       </div>
                     </div>
@@ -819,7 +1145,7 @@ const PhaseDetail = ({
               <button
                 onClick={handleAddTask}
                 disabled={!newTask.trim()}
-                className="px-4 py-2.5 bg-gray-900 dark:bg-gray-100 dark:text-gray-900 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-all hover:shadow-[0_0_15px_var(--color-primary)]"
               >
                 <Plus className="w-5 h-5" />
               </button>

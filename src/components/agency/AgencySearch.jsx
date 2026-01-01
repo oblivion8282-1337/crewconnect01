@@ -5,6 +5,7 @@ import {
   Calendar, Users, Euro, Briefcase, Check, CheckSquare, Square
 } from 'lucide-react';
 import DateRangePicker from '../shared/DateRangePicker';
+import { ProfileAvatar } from '../shared/ProfileField';
 import { PROFESSIONS } from '../../constants/profileOptions';
 
 /**
@@ -546,7 +547,12 @@ const FreelancerCard = ({
       {/* Header */}
       <div className="p-4 flex gap-4">
         {/* Avatar */}
-        <div className="text-5xl">{freelancer.avatar}</div>
+        <ProfileAvatar
+          imageUrl={freelancer.profileImage}
+          firstName={freelancer.firstName}
+          lastName={freelancer.lastName}
+          size="xl"
+        />
 
         {/* Infos */}
         <div className="flex-1">

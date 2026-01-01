@@ -1,10 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 
 // Components
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import CancelBookingModal from './components/modals/CancelBookingModal';
 import RescheduleBookingModal from './components/modals/RescheduleBookingModal';
+
+// Context
+import { UnsavedChangesProvider, useUnsavedChangesContext } from './contexts/UnsavedChangesContext';
 
 // Freelancer Views
 import FreelancerHomeDashboard from './components/freelancer/FreelancerHomeDashboard';
@@ -27,6 +30,9 @@ import AddToListModal from './components/modals/AddToListModal';
 import AddFreelancerToCrewModal from './components/modals/AddFreelancerToCrewModal';
 import BookFromProfileModal from './components/modals/BookFromProfileModal';
 
+// Client Management (CRM)
+import { ClientList, ClientDetail, ClientForm } from './components/agency/clients';
+
 // Shared Views
 import BookingHistory from './components/shared/BookingHistory';
 
@@ -41,12 +47,15 @@ import { useBookings } from './hooks/useBookings';
 import { useProjects } from './hooks/useProjects';
 import { useProfile } from './hooks/useProfile';
 import { useMessages } from './hooks/useMessages';
+import { useClients } from './hooks/useClients';
 import { USER_ROLES } from './constants/calendar';
 
 /**
- * CrewConnect - Hauptanwendung
+ * CrewConnect - Hauptanwendung (Innere Komponente mit Zugriff auf Context)
  */
-const App = () => {
+const AppContent = () => {
+  // Unsaved Changes Context
+  const { confirmNavigation, hasUnsavedChanges } = useUnsavedChangesContext();
   // === User Identity State ===
   const [freelancerId, setFreelancerId] = useState(1);
   const [agencyId, setAgencyId] = useState(1);
@@ -82,6 +91,11 @@ const App = () => {
   // null = closed, 'favorites' = open for favorites, listId = open with that list pre-selected
   const [addFreelancerModalListId, setAddFreelancerModalListId] = useState(null);
 
+  // === Client (CRM) State ===
+  const [selectedClientId, setSelectedClientId] = useState(null);
+  const [showClientForm, setShowClientForm] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
+
   // === Project Logic ===
   const {
     projects,
@@ -91,8 +105,27 @@ const App = () => {
     deletePhase,
     updatePhase,
     addProject,
-    addPhase
+    addPhase,
+    getProjectsByClient
   } = useProjects();
+
+  // === Client (CRM) Logic ===
+  const {
+    clients,
+    getClientById,
+    createClient,
+    updateClient,
+    deleteClient,
+    addContact,
+    updateContact,
+    removeContact,
+    setPrimaryContact,
+    toggleFavorite: toggleClientFavorite,
+    updateStatus: updateClientStatus,
+    addTag: addClientTag,
+    removeTag: removeClientTag,
+    getClientsWithStats
+  } = useClients();
 
   // === Selected Project & Phase State ===
   const [selectedProjectId, setSelectedProjectId] = useState(null);
@@ -229,12 +262,16 @@ const App = () => {
 
   // === Event Handlers ===
   const handleRoleChange = (newRole) => {
+    if (!confirmNavigation()) return;
     setUserRole(newRole);
     setCurrentView('dashboard');
     setShowNotifications(false);
     setSelectedProjectId(null);
     setSelectedPhaseId(null);
     setSelectedChatId(null);
+    setSelectedClientId(null);
+    setShowClientForm(false);
+    setEditingClient(null);
   };
 
   const handleOpenCancelModal = (booking) => {
@@ -425,6 +462,9 @@ const App = () => {
         userRole={userRole}
         currentView={currentView}
         onViewChange={(view) => {
+          // Blockiere Navigation wenn ungespeicherte Änderungen vorhanden sind
+          if (!confirmNavigation()) return;
+
           setCurrentView(view);
           setSelectedProjectId(null);
           setSelectedPhaseId(null);
@@ -432,6 +472,9 @@ const App = () => {
           setSelectedChatId(null);
           setFreelancerSelectedProjectId(null);
           setFreelancerSelectedPhaseId(null);
+          setSelectedClientId(null);
+          setShowClientForm(false);
+          setEditingClient(null);
           // Markiere Buchungs-Notifications als gelesen wenn Agentur auf Buchungen klickt
           if (view === 'bookings' && userRole === USER_ROLES.AGENCY) {
             const bookingTypes = ['confirmed', 'declined', 'cancelled', 'option_overtaken', 'reschedule_confirmed', 'reschedule_declined'];
@@ -606,7 +649,7 @@ const App = () => {
               onConvertToFix={handleConvertToFix}
               onViewBookings={() => setCurrentView('bookings')}
               onViewProjects={() => setCurrentView('projects')}
-              onAddProject={addProject}
+              onAddProject={() => setCurrentView('projects')}
             />
           )}
 
@@ -615,8 +658,14 @@ const App = () => {
               projects={projects}
               bookings={bookings}
               agencyId={agencyId}
+              clients={clients}
               onAddProject={addProject}
+              onUpdateProject={updateProject}
               onSelectProject={setSelectedProjectId}
+              onCreateClient={() => {
+                setCurrentView('clients');
+                setShowClientForm(true);
+              }}
             />
           )}
 
@@ -652,6 +701,12 @@ const App = () => {
                 setCurrentView('messages');
                 setSelectedChatId(chatId);
               }}
+              client={selectedProject?.clientId ? getClientById(selectedProject.clientId) : null}
+              onNavigateToClient={(clientId) => {
+                setSelectedProjectId(null);
+                setSelectedClientId(clientId);
+                setCurrentView('clients');
+              }}
             />
           )}
 
@@ -672,6 +727,7 @@ const App = () => {
               onBook={handleCreateBooking}
               onConvertToFix={handleConvertToFix}
               onWithdraw={handleWithdrawBooking}
+              onReschedule={setRescheduleModalBooking}
               onUpdatePhase={updatePhase}
               isFavorite={isFavorite}
               onToggleFavorite={toggleFavorite}
@@ -705,6 +761,38 @@ const App = () => {
               onNavigateToPhase={(projectId, phaseId) => {
                 setSelectedProjectId(projectId);
                 setSelectedPhaseId(phaseId);
+                setCurrentView('projects');
+              }}
+            />
+          )}
+
+          {/* Client (CRM) Views */}
+          {userRole === USER_ROLES.AGENCY && currentView === 'clients' && !selectedClientId && (
+            <ClientList
+              clients={getClientsWithStats(projects)}
+              onSelectClient={setSelectedClientId}
+              onCreateClient={() => setShowClientForm(true)}
+              onToggleFavorite={toggleClientFavorite}
+            />
+          )}
+
+          {userRole === USER_ROLES.AGENCY && currentView === 'clients' && selectedClientId && (
+            <ClientDetail
+              client={getClientById(selectedClientId)}
+              projects={getProjectsByClient(selectedClientId)}
+              onBack={() => setSelectedClientId(null)}
+              onSaveClient={(updatedData) => updateClient(selectedClientId, updatedData)}
+              onDelete={() => {
+                deleteClient(selectedClientId);
+                setSelectedClientId(null);
+              }}
+              onToggleFavorite={() => toggleClientFavorite(selectedClientId)}
+              onAddContact={(contact) => addContact(selectedClientId, contact)}
+              onEditContact={(contactId, contact) => updateContact(selectedClientId, contactId, contact)}
+              onRemoveContact={(contactId) => removeContact(selectedClientId, contactId)}
+              onSetPrimaryContact={(contactId) => setPrimaryContact(selectedClientId, contactId)}
+              onNavigateToProject={(projectId) => {
+                setSelectedProjectId(projectId);
                 setCurrentView('projects');
               }}
             />
@@ -822,6 +910,7 @@ const App = () => {
 
       <RescheduleBookingModal
         booking={rescheduleModalBooking}
+        projects={projects}
         getDayStatus={getDayStatus}
         agencyId={agencyId}
         onReschedule={handleRescheduleRequest}
@@ -863,7 +952,39 @@ const App = () => {
         getListsForFreelancer={getListsForFreelancer}
         initialListId={addFreelancerModalListId === 'favorites' ? null : addFreelancerModalListId}
       />
+
+      {/* Client Form Modal */}
+      {showClientForm && (
+        <ClientForm
+          client={editingClient}
+          onSave={(clientData) => {
+            if (editingClient) {
+              updateClient(editingClient.id, clientData);
+            } else {
+              const newClient = createClient(clientData);
+              setSelectedClientId(newClient.id);
+            }
+            setShowClientForm(false);
+            setEditingClient(null);
+          }}
+          onCancel={() => {
+            setShowClientForm(false);
+            setEditingClient(null);
+          }}
+        />
+      )}
     </div>
+  );
+};
+
+/**
+ * App - Wrapper mit UnsavedChangesProvider
+ */
+const App = () => {
+  return (
+    <UnsavedChangesProvider>
+      <AppContent />
+    </UnsavedChangesProvider>
   );
 };
 

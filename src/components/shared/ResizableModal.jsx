@@ -37,10 +37,24 @@ const ResizableModal = ({
   // Speichere Position vor Maximieren
   const [preMaxState, setPreMaxState] = useState(null);
 
-  // Zentriere Modal initial
+  // Zentriere Modal initial und passe Größe an Viewport an (max 90%)
   useEffect(() => {
-    const centerX = Math.max(0, (window.innerWidth - defaultWidth) / 2);
-    const centerY = Math.max(20, (window.innerHeight - defaultHeight) / 2);
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const maxWidthPercent = 0.95;
+    const maxHeightPercent = 0.90;
+
+    // Beschränke Größe auf max 90% des Viewports
+    const maxWidth = viewportWidth * maxWidthPercent;
+    const maxHeight = viewportHeight * maxHeightPercent;
+    const effectiveWidth = Math.min(defaultWidth, maxWidth);
+    const effectiveHeight = Math.min(defaultHeight, maxHeight);
+
+    // Zentriere Modal
+    const centerX = (viewportWidth - effectiveWidth) / 2;
+    const centerY = (viewportHeight - effectiveHeight) / 2;
+
+    setSize({ width: effectiveWidth, height: effectiveHeight });
     setPosition({ x: centerX, y: centerY });
   }, [defaultWidth, defaultHeight]);
 

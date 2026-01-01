@@ -7,6 +7,7 @@ import {
   Euro
 } from 'lucide-react';
 import StatusBadge from '../shared/StatusBadge';
+import { ProfileAvatar } from '../shared/ProfileField';
 import { formatDate } from '../../utils/dateUtils';
 import {
   isConfirmedStatus,
@@ -258,7 +259,12 @@ const FreelancerProjects = ({
                   key={freelancer.id}
                   className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center gap-4 bg-gray-50 dark:bg-gray-900"
                 >
-                  <span className="text-3xl">{freelancer.avatar}</span>
+                  <ProfileAvatar
+                    imageUrl={freelancer.profileImage}
+                    firstName={freelancer.firstName}
+                    lastName={freelancer.lastName}
+                    size="lg"
+                  />
                   <div className="flex-1">
                     <p className="font-medium text-gray-900 dark:text-white">
                       {freelancer.firstName} {freelancer.lastName}
@@ -372,7 +378,7 @@ const FreelancerProjects = ({
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Meine Projekte</h1>
 
-      {/* Kategorie-Tabs */}
+      {/* Kategorie-Tabs - Border-Highlight Design */}
       <div className="flex gap-2 mb-6">
         {Object.values(PROJECT_CATEGORIES).map(category => {
           const count = categorizedProjects[category]?.length || 0;
@@ -382,19 +388,19 @@ const FreelancerProjects = ({
               key={category}
               onClick={() => setActiveCategory(category)}
               className={`
-                px-4 py-2 rounded-xl text-sm font-medium transition-all
+                px-4 py-2 rounded-xl text-sm font-medium transition-all border-2
                 ${isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  ? 'border-primary text-primary bg-primary/5 dark:bg-primary/10'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                 }
               `}
             >
               {CATEGORY_LABELS[category]}
               {count > 0 && (
-                <span className={`ml-2 px-1.5 py-0.5 rounded-md text-xs ${
+                <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs font-semibold ${
                   isActive
-                    ? 'bg-white/20 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                 }`}>
                   {count}
                 </span>

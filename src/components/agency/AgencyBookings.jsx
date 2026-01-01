@@ -21,45 +21,42 @@ const formatDateRange = (dates) => {
 };
 
 /**
- * Tab-Button Komponente
+ * Tab-Button Komponente - Border-Highlight Design mit Farben
  */
 const TabButton = ({ active, onClick, color, badge, count, children }) => {
-  const activeColors = {
-    purple: 'bg-purple-600 text-white',
-    blue: 'bg-blue-600 text-white',
-    yellow: 'bg-yellow-500 text-white',
-    green: 'bg-emerald-600 text-white',
-    red: 'bg-red-600 text-white'
+  // Aktive Styles: Border + heller Hintergrund + farbige Schrift
+  const activeStyles = {
+    purple: 'border-purple-500 text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20',
+    blue: 'border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
+    yellow: 'border-yellow-500 text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20',
+    green: 'border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20',
+    red: 'border-red-500 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'
   };
 
+  // Badge-Farben (immer gefüllt für Sichtbarkeit)
   const badgeColors = {
-    purple: 'bg-purple-700',
-    blue: 'bg-blue-700',
-    yellow: 'bg-yellow-600',
-    green: 'bg-emerald-700',
-    red: 'bg-red-700'
-  };
-
-  const inactiveBadgeColors = {
-    purple: 'bg-purple-500',
-    blue: 'bg-blue-500',
-    yellow: 'bg-yellow-500',
-    green: 'bg-emerald-500',
-    red: 'bg-red-500'
+    purple: 'bg-purple-500 text-white',
+    blue: 'bg-blue-500 text-white',
+    yellow: 'bg-yellow-500 text-white',
+    green: 'bg-emerald-500 text-white',
+    red: 'bg-red-500 text-white'
   };
 
   return (
     <button
       onClick={onClick}
-      className={`flex-1 py-2.5 px-3 rounded-xl font-medium text-sm relative transition-colors flex items-center justify-center gap-2 ${
-        active ? activeColors[color] : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-      }`}
+      className={`
+        flex-1 py-2.5 px-3 rounded-xl font-medium text-sm relative transition-all
+        flex items-center justify-center gap-2 border-2
+        ${active
+          ? activeStyles[color]
+          : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+        }
+      `}
     >
       {children}
       {count > 0 && (
-        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full text-white ${
-          active ? badgeColors[color] : inactiveBadgeColors[color]
-        }`}>
+        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${badgeColors[color]}`}>
           {count}
         </span>
       )}

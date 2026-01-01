@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Pencil, Check, X, Globe, Phone, Mail, MapPin, Building2, Users, Calendar,
   Linkedin, Instagram, Twitter, Youtube, Film, Video,
   Plus, Trash2, ExternalLink, Lock, Palette
 } from 'lucide-react';
+import { useUnsavedChangesContext } from '../../contexts/UnsavedChangesContext';
 import {
   TextField,
   TextAreaField,
@@ -36,6 +37,14 @@ const AgencyProfile = ({
     url: '', title: '', description: '', category: 'other'
   });
 
+  // Ungespeicherte Änderungen tracken (globaler Context)
+  const { setUnsaved, clearUnsaved } = useUnsavedChangesContext();
+
+  // Wenn im Bearbeitungsmodus, gibt es ungespeicherte Änderungen
+  useEffect(() => {
+    setUnsaved(isEditing);
+  }, [isEditing, setUnsaved]);
+
   if (!profile) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -54,6 +63,7 @@ const AgencyProfile = ({
   const handleCancelEdit = () => {
     setEditData({});
     setIsEditing(false);
+    clearUnsaved();
   };
 
   const handleSaveEdit = () => {
@@ -61,6 +71,7 @@ const AgencyProfile = ({
     const { portfolio, socialMedia, ...simpleFields } = editData;
     onUpdate(simpleFields);
     setIsEditing(false);
+    clearUnsaved();
   };
 
   const handleChange = (field, value) => {

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Pencil, Check, X, Star, BadgeCheck, MapPin, Globe, Phone, Mail,
   Linkedin, Instagram, Twitter, Youtube, Film, Users, Video,
   Plus, Trash2, ExternalLink, Eye, EyeOff, Lock, Laptop, Palette
 } from 'lucide-react';
+import { useUnsavedChangesContext } from '../../contexts/UnsavedChangesContext';
 import {
   TextField,
   TextAreaField,
@@ -64,6 +65,14 @@ const FreelancerProfile = ({
     url: '', title: '', description: '', category: 'other'
   });
 
+  // Ungespeicherte Änderungen tracken (globaler Context)
+  const { setUnsaved, clearUnsaved } = useUnsavedChangesContext();
+
+  // Wenn im Bearbeitungsmodus, gibt es ungespeicherte Änderungen
+  useEffect(() => {
+    setUnsaved(isEditing);
+  }, [isEditing, setUnsaved]);
+
   if (!profile) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -82,12 +91,14 @@ const FreelancerProfile = ({
   const handleCancelEdit = () => {
     setEditData({});
     setIsEditing(false);
+    clearUnsaved();
   };
 
   const handleSaveEdit = () => {
     const { professions, tags, portfolio, socialMedia, visibility, ...simpleFields } = editData;
     onUpdate(simpleFields);
     setIsEditing(false);
+    clearUnsaved();
   };
 
   const handleChange = (field, value) => {

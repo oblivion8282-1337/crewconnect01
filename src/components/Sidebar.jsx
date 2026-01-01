@@ -11,7 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  MessageCircle
+  MessageCircle,
+  Building2
 } from 'lucide-react';
 import { USER_ROLES } from '../constants/calendar';
 
@@ -33,6 +34,7 @@ const FREELANCER_NAV_ITEMS = [
 const AGENCY_NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'projects', icon: Briefcase, label: 'Projekte' },
+  { id: 'clients', icon: Building2, label: 'Kunden' },
   { id: 'bookings', icon: CheckCircle, label: 'Buchungen', showBookingsBadge: true },
   { id: 'messages', icon: MessageCircle, label: 'Nachrichten', showMessageBadge: true },
   { id: 'freelancer-search', icon: Search, label: 'Freelancer' },
@@ -150,19 +152,20 @@ const Sidebar = ({
                       <span className="font-medium text-sm">{item.label}</span>
                       {hasBadge && (
                         <span className={`
-                          ml-auto px-2 py-0.5 text-xs font-semibold rounded-full
+                          ml-auto min-w-[22px] h-[22px] px-1.5 text-xs font-semibold rounded-full
+                          flex items-center justify-center
                           ${isActive
-                            ? 'bg-gray-900 text-primary'
-                            : showMessageBadge ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'
+                            ? 'bg-primary-foreground text-primary'
+                            : 'bg-primary text-primary-foreground'
                           }
                         `}>
-                          {displayBadgeCount}
+                          {displayBadgeCount > 99 ? '99+' : displayBadgeCount}
                         </span>
                       )}
                     </>
                   )}
                   {isCollapsed && hasBadge && (
-                    <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ${showMessageBadge ? 'bg-blue-500' : 'bg-red-500'}`} />
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" />
                   )}
                 </button>
               );

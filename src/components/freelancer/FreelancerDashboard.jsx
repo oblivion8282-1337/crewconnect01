@@ -203,45 +203,42 @@ const FreelancerDashboard = ({
 };
 
 /**
- * Tab-Button Komponente
+ * Tab-Button Komponente - Border-Highlight Design mit Farben
  */
 const TabButton = ({ active, onClick, color, badge, count, children }) => {
-  const activeColors = {
-    purple: 'bg-purple-600 text-white',
-    blue: 'bg-blue-600 text-white',
-    yellow: 'bg-yellow-500 text-white',
-    green: 'bg-emerald-600 text-white',
-    red: 'bg-red-600 text-white'
+  // Aktive Styles: Border + heller Hintergrund + farbige Schrift
+  const activeStyles = {
+    purple: 'border-purple-500 text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20',
+    blue: 'border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
+    yellow: 'border-yellow-500 text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20',
+    green: 'border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20',
+    red: 'border-red-500 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'
   };
 
+  // Badge-Farben (immer gefüllt für Sichtbarkeit)
   const badgeColors = {
-    purple: 'bg-purple-700',
-    blue: 'bg-blue-700',
-    yellow: 'bg-yellow-600',
-    green: 'bg-emerald-700',
-    red: 'bg-red-700'
-  };
-
-  const inactiveBadgeColors = {
-    purple: 'bg-purple-500',
-    blue: 'bg-blue-500',
-    yellow: 'bg-yellow-500',
-    green: 'bg-emerald-500',
-    red: 'bg-red-500'
+    purple: 'bg-purple-500 text-white',
+    blue: 'bg-blue-500 text-white',
+    yellow: 'bg-yellow-500 text-white',
+    green: 'bg-emerald-500 text-white',
+    red: 'bg-red-500 text-white'
   };
 
   return (
     <button
       onClick={onClick}
-      className={`flex-1 py-2.5 px-3 rounded-xl font-medium text-sm relative transition-colors flex items-center justify-center gap-2 ${
-        active ? activeColors[color] : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-      }`}
+      className={`
+        flex-1 py-2.5 px-3 rounded-xl font-medium text-sm relative transition-all
+        flex items-center justify-center gap-2 border-2
+        ${active
+          ? activeStyles[color]
+          : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+        }
+      `}
     >
       {children}
       {count > 0 && (
-        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full text-white ${
-          active ? badgeColors[color] : inactiveBadgeColors[color]
-        }`}>
+        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${badgeColors[color]}`}>
           {count}
         </span>
       )}
@@ -449,61 +446,241 @@ const BookingCard = ({
 };
 
 /**
+ * Mini-Kalender für Verschiebungen - zeigt alte und neue Termine
+ */
+const RescheduleMiniCalendar = ({ originalDates, newDates }) => {
+  // Berechne alle relevanten Daten
+  const allDates = useMemo(() => [...new Set([...originalDates, ...newDates])].sort(), [originalDates, newDates]);
+  const originalSet = useMemo(() => new Set(originalDates), [originalDates]);
+  const newSet = useMemo(() => new Set(newDates), [newDates]);
+
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const firstDate = allDates[0];
+    if (!firstDate) return new Date();
+    const d = parseLocalDate(firstDate);
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+
+  const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  const weekDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+
+  // Berechne Änderungen
+  const removed = originalDates.filter(d => !newSet.has(d));
+  const added = newDates.filter(d => !originalSet.has(d));
+  const kept = newDates.filter(d => originalSet.has(d));
+
+  const getDaysInMonth = (monthDate) => {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const days = [];
+
+    let startDay = firstDay.getDay() - 1;
+    if (startDay < 0) startDay = 6;
+    for (let i = 0; i < startDay; i++) {
+      days.push(null);
+    }
+
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      const isOriginal = originalSet.has(dateStr);
+      const isNew = newSet.has(dateStr);
+
+      let status = null;
+      if (isOriginal && isNew) status = 'kept';
+      else if (isOriginal && !isNew) status = 'removed';
+      else if (!isOriginal && isNew) status = 'added';
+
+      days.push({ day: i, dateStr, status });
+    }
+
+    return days;
+  };
+
+  const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+  const leftDays = getDaysInMonth(currentMonth);
+  const rightDays = getDaysInMonth(nextMonth);
+
+  const getDayStyle = (status) => {
+    switch (status) {
+      case 'kept':
+        return 'bg-blue-500 text-white font-medium';
+      case 'removed':
+        return 'bg-red-200 dark:bg-red-900/50 text-red-600 dark:text-red-400 line-through';
+      case 'added':
+        return 'bg-emerald-500 text-white font-medium';
+      default:
+        return 'text-gray-600 dark:text-gray-400';
+    }
+  };
+
+  const renderMonth = (monthDate, days) => (
+    <div className="flex-1 min-w-0">
+      <div className="text-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {monthNames[monthDate.getMonth()]} {monthDate.getFullYear()}
+      </div>
+
+      <div className="grid grid-cols-7 gap-0.5 mb-1">
+        {weekDays.map(day => (
+          <div key={day} className="text-center text-[10px] text-gray-400 dark:text-gray-500 py-0.5">
+            {day}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-0.5">
+        {days.map((day, idx) => {
+          if (!day) {
+            return <div key={`empty-${idx}`} className="h-6" />;
+          }
+
+          return (
+            <div
+              key={day.dateStr}
+              className={`h-6 flex items-center justify-center text-xs rounded ${getDayStyle(day.status)}`}
+            >
+              {day.day}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3" onClick={(e) => e.stopPropagation()}>
+      {/* Navigation */}
+      <div className="flex items-center justify-between mb-3">
+        <button
+          onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
+        >
+          <ChevronLeft className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+        </button>
+        <button
+          onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
+        >
+          <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+        </button>
+      </div>
+
+      {/* Zwei Monate nebeneinander */}
+      <div className="flex gap-4">
+        {renderMonth(currentMonth, leftDays)}
+        <div className="w-px bg-gray-200 dark:bg-gray-700" />
+        {renderMonth(nextMonth, rightDays)}
+      </div>
+
+      {/* Legende */}
+      <div className="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+        {kept.length > 0 && (
+          <span className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-blue-500" />
+            Beibehalten ({kept.length})
+          </span>
+        )}
+        {removed.length > 0 && (
+          <span className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-red-200 dark:bg-red-900/50 border border-red-300 dark:border-red-700" />
+            Entfernt ({removed.length})
+          </span>
+        )}
+        {added.length > 0 && (
+          <span className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-emerald-500" />
+            Neu ({added.length})
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/**
  * Content für Verschiebungsanfragen
  */
-const RescheduleContent = ({ booking, onAccept, onDecline }) => (
-  <>
-    <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Aktuelle Termine:</span>
-        <div className="flex flex-wrap gap-1">
-          {booking.reschedule.originalDates.map(date => (
-            <span
-              key={date}
-              className="px-2 py-0.5 text-xs rounded bg-gray-200 dark:bg-gray-700 line-through text-gray-600 dark:text-gray-400"
-            >
-              {formatDate(date)}
-            </span>
-          ))}
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-purple-600 dark:text-purple-400">Neue Termine:</span>
-        <div className="flex flex-wrap gap-1">
-          {booking.reschedule.newDates.map(date => (
-            <span
-              key={date}
-              className="px-2 py-0.5 text-xs rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
-            >
-              {formatDate(date)}
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
+const RescheduleContent = ({ booking, onAccept, onDecline }) => {
+  const [showCalendar, setShowCalendar] = useState(false);
 
-    <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
-      <div>
-        <span className="text-gray-500 dark:text-gray-500 line-through mr-2">{booking.totalCost}€</span>
-        <span className="font-bold text-purple-700 dark:text-purple-400">{booking.reschedule.newTotalCost}€</span>
-      </div>
-      <div className="flex gap-2">
+  return (
+    <>
+      {/* Toggle für Kalender */}
+      <div className="mb-3">
         <button
-          onClick={() => onDecline(booking)}
-          className="px-3 py-1.5 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 rounded-lg text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          onClick={(e) => { e.stopPropagation(); setShowCalendar(!showCalendar); }}
+          className="flex items-center gap-2 px-3 py-2 w-full text-left bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-lg transition-colors"
         >
-          Ablehnen
-        </button>
-        <button
-          onClick={() => onAccept(booking)}
-          className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors"
-        >
-          Verschiebung bestätigen
+          <Calendar className="w-4 h-4" />
+          <span className="text-sm font-medium">
+            {showCalendar ? 'Kalender ausblenden' : 'Termine im Kalender anzeigen'}
+          </span>
         </button>
       </div>
-    </div>
-  </>
-);
+
+      {/* Kalender oder Text-Ansicht */}
+      {showCalendar ? (
+        <div className="mb-3">
+          <RescheduleMiniCalendar
+            originalDates={booking.reschedule.originalDates}
+            newDates={booking.reschedule.newDates}
+          />
+        </div>
+      ) : (
+        <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Aktuelle Termine:</span>
+            <div className="flex flex-wrap gap-1">
+              {booking.reschedule.originalDates.map(date => (
+                <span
+                  key={date}
+                  className="px-2 py-0.5 text-xs rounded bg-gray-200 dark:bg-gray-700 line-through text-gray-600 dark:text-gray-400"
+                >
+                  {formatDate(date)}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-purple-600 dark:text-purple-400">Neue Termine:</span>
+            <div className="flex flex-wrap gap-1">
+              {booking.reschedule.newDates.map(date => (
+                <span
+                  key={date}
+                  className="px-2 py-0.5 text-xs rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                >
+                  {formatDate(date)}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
+        <div>
+          <span className="text-gray-500 dark:text-gray-500 line-through mr-2">{booking.totalCost}€</span>
+          <span className="font-bold text-purple-700 dark:text-purple-400">{booking.reschedule.newTotalCost}€</span>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onDecline(booking)}
+            className="px-3 py-1.5 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 rounded-lg text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            Ablehnen
+          </button>
+          <button
+            onClick={() => onAccept(booking)}
+            className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors"
+          >
+            Verschiebung bestätigen
+          </button>
+        </div>
+      </div>
+    </>
+  );
+};
 
 /**
  * Mini-Kalender für Buchungen - zeigt zwei Monate nebeneinander

@@ -95,6 +95,10 @@ export const useProjects = () => {
         email: projectData.contactEmail || '',
         phone: projectData.contactPhone || ''
       },
+      // Kundenverknüpfung (CRM)
+      clientId: projectData.clientId || null,
+      clientContactId: projectData.clientContactId || null,
+      purchaseOrderNumber: projectData.purchaseOrderNumber || null,
       notes: projectData.notes || '',
       phases: []
     };
@@ -141,6 +145,27 @@ export const useProjects = () => {
     }));
   }, []);
 
+  /**
+   * Gibt alle Projekte eines Kunden zurück
+   * @param {string} clientId - ID des Kunden
+   */
+  const getProjectsByClient = useCallback((clientId) => {
+    return projects.filter(p => p.clientId === clientId);
+  }, [projects]);
+
+  /**
+   * Gibt alle Projekte mit Kunden-Info zurück
+   * @param {Array} clients - Array aller Kunden
+   */
+  const getProjectsWithClientInfo = useCallback((clients) => {
+    return projects.map(project => ({
+      ...project,
+      client: project.clientId
+        ? clients.find(c => c.id === project.clientId) || null
+        : null
+    }));
+  }, [projects]);
+
   return {
     projects,
     getProjectById,
@@ -150,6 +175,9 @@ export const useProjects = () => {
     updatePhase,
     addProject,
     addPhase,
-    updateProjectBudget
+    updateProjectBudget,
+    // CRM-Integration
+    getProjectsByClient,
+    getProjectsWithClientInfo
   };
 };

@@ -7,6 +7,26 @@ import {
 } from 'lucide-react';
 import { ProfileAvatar } from '../shared/ProfileField';
 
+// Vordefinierte Farben für Projekte/Phasen
+const PHASE_COLORS = [
+  { id: 'gray', bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-700 dark:text-gray-300' },
+  { id: 'blue', bg: 'bg-blue-100 dark:bg-blue-900/40', text: 'text-blue-700 dark:text-blue-300' },
+  { id: 'emerald', bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300' },
+  { id: 'amber', bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-700 dark:text-amber-300' },
+  { id: 'violet', bg: 'bg-violet-100 dark:bg-violet-900/40', text: 'text-violet-700 dark:text-violet-300' },
+  { id: 'rose', bg: 'bg-rose-100 dark:bg-rose-900/40', text: 'text-rose-700 dark:text-rose-300' },
+  { id: 'cyan', bg: 'bg-cyan-100 dark:bg-cyan-900/40', text: 'text-cyan-700 dark:text-cyan-300' },
+  { id: 'orange', bg: 'bg-orange-100 dark:bg-orange-900/40', text: 'text-orange-700 dark:text-orange-300' }
+];
+
+// Hilfsfunktion um Hex-Farbe aufzuhellen (für Hintergrund)
+const hexToRgba = (hex, alpha) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 /**
  * Durchsuchbares Single-Select Dropdown
  */
@@ -338,8 +358,8 @@ const FreelancerSearchModal = ({
     startDate: '',
     endDate: ''
   });
-  // DatePicker nur initial anzeigen wenn Phase keine Termine hat UND noch kein custom Datum gewählt wurde
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  // DatePicker initial ausgeklappt anzeigen wenn Phase keine Termine hat
+  const [showDatePicker, setShowDatePicker] = useState(true);
 
   // Booking State
   const [selectedFreelancer, setSelectedFreelancer] = useState(null);
@@ -581,14 +601,50 @@ const FreelancerSearchModal = ({
     return `${start.getDate()}. ${monthNames[start.getMonth()]} – ${end.getDate()}. ${monthNames[end.getMonth()]} ${end.getFullYear()}`;
   };
 
+  // Projekt-Farbe berechnen
+  const isProjectCustomColor = project.color?.startsWith('#');
+  const projectColorDef = isProjectCustomColor
+    ? null
+    : (PHASE_COLORS.find(c => c.id === project.color) || PHASE_COLORS[1]); // Default: blue
+
+  const projectBadgeStyle = isProjectCustomColor ? {
+    backgroundColor: hexToRgba(project.color, 0.2),
+    color: project.color
+  } : {};
+
+  const projectBadgeClass = isProjectCustomColor
+    ? ''
+    : `${projectColorDef.bg} ${projectColorDef.text}`;
+
+  // Phase-Farbe berechnen
+  const isPhaseCustomColor = phase.color?.startsWith('#');
+  const phaseColorDef = isPhaseCustomColor
+    ? null
+    : (PHASE_COLORS.find(c => c.id === phase.color) || PHASE_COLORS[0]); // Default: gray
+
+  const phaseBadgeStyle = isPhaseCustomColor ? {
+    backgroundColor: hexToRgba(phase.color, 0.2),
+    color: phase.color
+  } : {};
+
+  const phaseBadgeClass = isPhaseCustomColor
+    ? ''
+    : `${phaseColorDef.bg} ${phaseColorDef.text}`;
+
   // Custom Header mit prominenter Projekt/Phase/Zeitraum Anzeige (einzeilig, zentriert)
   const customSubtitle = (
     <div className="flex items-center gap-2">
-      <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded font-medium text-sm">
+      <span
+        className={`px-2 py-0.5 rounded font-medium text-sm ${projectBadgeClass}`}
+        style={projectBadgeStyle}
+      >
         {project.name}
       </span>
       <span className="text-gray-400 dark:text-gray-500">→</span>
-      <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded font-medium text-sm">
+      <span
+        className={`px-2 py-0.5 rounded font-medium text-sm ${phaseBadgeClass}`}
+        style={phaseBadgeStyle}
+      >
         {phase.name}
       </span>
       {hasValidDateRange && (
@@ -620,22 +676,24 @@ const FreelancerSearchModal = ({
 
         {/* Datumsauswahl wenn Phase kein Datum hat */}
         {!phaseHasDates && (
-          <div className="border-b border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
+          <div className="border-b border-gray-200 dark:border-gray-700 bg-primary/10">
             <button
               onClick={() => setShowDatePicker(!showDatePicker)}
-              className="w-full p-3 flex items-center justify-between hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+              className="w-full p-3 flex items-center justify-between hover:bg-primary/20 transition-colors"
             >
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                <Calendar className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-primary">
                   {hasValidDateRange
                     ? formatDateDisplay(customDateRange.startDate, customDateRange.endDate)
                     : 'Buchungszeitraum wählen'}
                 </span>
               </div>
-              <ChevronDown className={`w-4 h-4 text-blue-600 dark:text-blue-400 transition-transform ${showDatePicker ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-4 h-4 text-primary transition-transform ${showDatePicker ? 'rotate-180' : ''}`} />
             </button>
-            {showDatePicker && (
+            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              showDatePicker ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
+            }`}>
               <div className="px-3 pb-3">
                 <DateRangePicker
                   startDate={customDateRange.startDate}
@@ -643,13 +701,10 @@ const FreelancerSearchModal = ({
                   onChange={({ startDate, endDate }) => {
                     setCustomDateRange({ startDate, endDate });
                     setSelectedDays([]);
-                    if (startDate && endDate) {
-                      setShowDatePicker(false);
-                    }
                   }}
                 />
               </div>
-            )}
+            </div>
           </div>
         )}
 
@@ -818,10 +873,12 @@ const FreelancerSearchModal = ({
 
           {/* Dritte Zeile: Info + Reset */}
           <div className="flex items-center justify-end gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <span>{filteredFreelancers.length} Freelancer</span>
+            {hasValidDateRange && filters.profession && (filters.city || filters.remoteOnly) && (
+              <span>{filteredFreelancers.length} Freelancer gefunden</span>
+            )}
             <button
               onClick={handleReset}
-              className="text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-primary hover:underline"
             >
               Reset
             </button>
@@ -829,12 +886,20 @@ const FreelancerSearchModal = ({
         </div>
 
         {/* Freelancer-Liste */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 bg-gray-100 dark:bg-gray-900">
           {!hasValidDateRange ? (
             <div className="text-center py-12">
-              <Calendar className="w-12 h-12 text-blue-300 dark:text-blue-700 mx-auto mb-3" />
+              <Calendar className="w-12 h-12 text-primary mx-auto mb-3" />
               <p className="text-gray-600 dark:text-gray-400 font-medium">Bitte wähle zuerst einen Zeitraum</p>
               <p className="text-sm text-gray-400 dark:text-gray-500">Wähle oben Start- und Enddatum für die Buchung</p>
+            </div>
+          ) : !filters.profession || (!filters.city && !filters.remoteOnly) ? (
+            <div className="text-center py-12">
+              <Search className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-600 dark:text-gray-400 font-medium">Bitte Suchkriterien eingeben</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500">
+                Wähle ein Berufsfeld und entweder eine Stadt oder "Remote möglich"
+              </p>
             </div>
           ) : filteredFreelancers.length === 0 ? (
             <div className="text-center py-12">
@@ -843,7 +908,7 @@ const FreelancerSearchModal = ({
               <p className="text-sm text-gray-400 dark:text-gray-500">Passe die Filterkriterien an</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {filteredFreelancers.map(freelancer => (
                 <FreelancerResultCard
                   key={freelancer.id}
@@ -1186,8 +1251,8 @@ const FreelancerResultCard = ({
   const allTags = freelancer.tags || [];
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg border transition-all ${
-      isSelected ? 'border-blue-500 shadow-lg ring-1 ring-blue-500' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+    <div className={`bg-white dark:bg-gray-800 rounded-xl border-2 transition-all shadow-md hover:shadow-lg ${
+      isSelected ? 'border-primary shadow-lg ring-2 ring-primary/30' : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
     }`}>
       {/* Kompakter Header */}
       <div className="p-3">

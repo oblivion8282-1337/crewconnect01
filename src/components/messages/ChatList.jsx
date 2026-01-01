@@ -122,10 +122,10 @@ const ChatList = ({
               className={`
                 w-full p-4 flex items-start gap-3 rounded-xl transition-colors text-left
                 ${hasUnread
-                  ? 'bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30'
-                  : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  ? 'bg-primary/5 dark:bg-primary/10 hover:bg-primary/10 dark:hover:bg-primary/20 border-primary/20'
+                  : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700'
                 }
-                border border-gray-200 dark:border-gray-700
+                border
               `}
             >
               {/* Avatar */}
@@ -138,7 +138,7 @@ const ChatList = ({
                   className="w-12 h-12 text-base"
                 />
                 {hasUnread && (
-                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  <div className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-primary text-primary-foreground text-xs font-bold rounded-full flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </div>
                 )}

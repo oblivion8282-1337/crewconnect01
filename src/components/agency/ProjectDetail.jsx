@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ArrowLeft,
   Calendar,
@@ -19,12 +19,20 @@ import {
   RotateCcw,
   CheckCircle,
   AlertTriangle,
-  Palette
+  Palette,
+  Save,
+  MapPin,
+  Briefcase,
+  ExternalLink,
+  FileText
 } from 'lucide-react';
+import { getIndustryLabel } from '../../constants/clients';
 import FreelancerSearchModal from '../modals/FreelancerSearchModal';
 import DateRangePicker from '../shared/DateRangePicker';
 import ResizableModal from '../shared/ResizableModal';
+import { ProfileAvatar } from '../shared/ProfileField';
 import { formatDate } from '../../utils/dateUtils';
+import { useUnsavedChangesContext } from '../../contexts/UnsavedChangesContext';
 import {
   BOOKING_STATUS,
   isPendingStatus,
@@ -40,15 +48,23 @@ import {
 
 // Vordefinierte Farben für Phasen
 const PHASE_COLORS = [
-  { id: 'gray', bg: 'bg-gray-50 dark:bg-gray-800', border: 'border-gray-200 dark:border-gray-700', preview: 'bg-gray-200 dark:bg-gray-600' },
-  { id: 'blue', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', preview: 'bg-blue-400' },
-  { id: 'emerald', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', preview: 'bg-emerald-400' },
-  { id: 'amber', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', preview: 'bg-amber-400' },
-  { id: 'violet', bg: 'bg-violet-50 dark:bg-violet-900/20', border: 'border-violet-200 dark:border-violet-800', preview: 'bg-violet-400' },
-  { id: 'rose', bg: 'bg-rose-50 dark:bg-rose-900/20', border: 'border-rose-200 dark:border-rose-800', preview: 'bg-rose-400' },
-  { id: 'cyan', bg: 'bg-cyan-50 dark:bg-cyan-900/20', border: 'border-cyan-200 dark:border-cyan-800', preview: 'bg-cyan-400' },
-  { id: 'orange', bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-800', preview: 'bg-orange-400' }
+  { id: 'gray', bg: 'bg-gray-50 dark:bg-gray-800', border: 'border-gray-200 dark:border-gray-700', preview: 'bg-gray-200 dark:bg-gray-600', glow: 'gray', text: 'text-gray-700 dark:text-gray-300' },
+  { id: 'blue', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', preview: 'bg-blue-400', glow: '#3b82f6', text: 'text-blue-700 dark:text-blue-300' },
+  { id: 'emerald', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', preview: 'bg-emerald-400', glow: '#10b981', text: 'text-emerald-700 dark:text-emerald-300' },
+  { id: 'amber', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', preview: 'bg-amber-400', glow: '#f59e0b', text: 'text-amber-700 dark:text-amber-300' },
+  { id: 'violet', bg: 'bg-violet-50 dark:bg-violet-900/20', border: 'border-violet-200 dark:border-violet-800', preview: 'bg-violet-400', glow: '#8b5cf6', text: 'text-violet-700 dark:text-violet-300' },
+  { id: 'rose', bg: 'bg-rose-50 dark:bg-rose-900/20', border: 'border-rose-200 dark:border-rose-800', preview: 'bg-rose-400', glow: '#f43f5e', text: 'text-rose-700 dark:text-rose-300' },
+  { id: 'cyan', bg: 'bg-cyan-50 dark:bg-cyan-900/20', border: 'border-cyan-200 dark:border-cyan-800', preview: 'bg-cyan-400', glow: '#06b6d4', text: 'text-cyan-700 dark:text-cyan-300' },
+  { id: 'orange', bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-800', preview: 'bg-orange-400', glow: '#f97316', text: 'text-orange-700 dark:text-orange-300' }
 ];
+
+// Hilfsfunktion um Hex-Farbe aufzuhellen (für Hintergrund)
+const hexToRgba = (hex, alpha) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 /**
  * ProjectDetail - Detailansicht eines Projekts
@@ -142,13 +158,43 @@ const ProjectDetail = ({
   onOpenAddToListModal,
   // Chat Props
   getOrCreateChat,
-  onOpenChat
+  onOpenChat,
+  // CRM Props
+  client,
+  onNavigateToClient
 }) => {
   const [searchContext, setSearchContext] = useState(null);
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [editingSection, setEditingSection] = useState(null);
   const [editData, setEditData] = useState({});
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: null });
+
+  // Ungespeicherte Änderungen tracken (globaler Context)
+  const { setUnsaved, clearUnsaved, confirmNavigation } = useUnsavedChangesContext();
+
+  // Wenn editingSection aktiv ist, gibt es ungespeicherte Änderungen
+  useEffect(() => {
+    setUnsaved(editingSection !== null);
+  }, [editingSection, setUnsaved]);
+
+  // Sichere Navigation mit Warnung bei ungespeicherten Änderungen
+  const handleSafeBack = () => {
+    if (confirmNavigation('Du hast ungespeicherte Änderungen. Möchtest du wirklich zurück?')) {
+      setEditingSection(null);
+      setEditData({});
+      clearUnsaved();
+      onBack();
+    }
+  };
+
+  const handleSafeBackToProjects = () => {
+    if (confirmNavigation('Du hast ungespeicherte Änderungen. Möchtest du wirklich zurück?')) {
+      setEditingSection(null);
+      setEditData({});
+      clearUnsaved();
+      onBackToProjects();
+    }
+  };
 
   // Buchungen für dieses Projekt
   const projectBookings = useMemo(() =>
@@ -180,10 +226,10 @@ const ProjectDetail = ({
     return Array.from(teamMap.values());
   }, [projectBookings, freelancers]);
 
-  // Ausgaben-Berechnung: Summe aller Phasen-Kosten
+  // Ausgaben-Berechnung: Summe aller Buchungskosten
   const totalExpenses = useMemo(() => {
-    return project.phases?.reduce((sum, phase) => sum + (phase.budget || 0), 0) || 0;
-  }, [project.phases]);
+    return projectBookings.reduce((sum, booking) => sum + (booking.totalCost || 0), 0);
+  }, [projectBookings]);
 
   const handleOpenSearch = (phase) => {
     setSearchContext({ project, phase });
@@ -211,18 +257,40 @@ const ProjectDetail = ({
     }
   };
 
+  // Projekt-Farbe für Breadcrumb
+  const isProjectCustomColor = project.color?.startsWith('#');
+  const projectColorDef = isProjectCustomColor
+    ? null
+    : (PHASE_COLORS.find(c => c.id === project.color) || PHASE_COLORS[1]); // Default: blue
+
+  const projectBreadcrumbStyle = isProjectCustomColor ? {
+    backgroundColor: hexToRgba(project.color, 0.15),
+    color: project.color,
+    borderColor: hexToRgba(project.color, 0.3)
+  } : {};
+
+  const projectBreadcrumbClass = isProjectCustomColor
+    ? 'border'
+    : `${projectColorDef.bg} ${projectColorDef.text} ${projectColorDef.border}`;
+
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Breadcrumb Navigation */}
-      <nav className="flex items-center gap-2 text-sm mb-6">
+      {/* Breadcrumb Navigation - mit Projektfarbe */}
+      <nav className="flex items-center gap-3 mb-6">
         <button
-          onClick={onBackToProjects || onBack}
-          className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+          onClick={handleSafeBackToProjects}
+          className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
         >
+          <ArrowLeft className="w-4 h-4" />
           Projekte
         </button>
-        <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600 dark:text-gray-400" />
-        <span className="text-gray-900 dark:text-white font-medium">{project.name}</span>
+        <span className="text-gray-400 dark:text-gray-500">→</span>
+        <span
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${projectBreadcrumbClass}`}
+          style={projectBreadcrumbStyle}
+        >
+          {project.name}
+        </span>
       </nav>
 
       {/* Header */}
@@ -239,26 +307,61 @@ const ProjectDetail = ({
                 />
               ) : (
                 <>
-                  <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{project.name}</h1>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${PROJECT_STATUS_COLORS[project.status]}`}>
-                      {PROJECT_STATUS_LABELS[project.status]}
-                    </span>
+                  {/* Projektname */}
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{project.name}</h1>
+
+                  {/* Metadaten Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {/* Kunde */}
+                    <div>
+                      <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Kunde</p>
+                      <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium">
+                        {project.client}
+                      </span>
+                    </div>
+
+                    {/* Projektnummer */}
+                    <div>
+                      <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Projektnummer</p>
+                      {project.projectNumber ? (
+                        <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm font-mono">
+                          #{project.projectNumber}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400 dark:text-gray-500 italic">Nicht vergeben</span>
+                      )}
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                      <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Status</p>
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${PROJECT_STATUS_COLORS[project.status]}`}>
+                        {PROJECT_STATUS_LABELS[project.status]}
+                      </span>
+                    </div>
+
+                    {/* Zeitraum */}
+                    <div>
+                      <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Zeitraum</p>
+                      {(project.startDate || project.endDate) ? (
+                        <p className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          {project.startDate && project.endDate
+                            ? `${formatDate(project.startDate)} – ${formatDate(project.endDate)}`
+                            : project.startDate
+                              ? `Ab ${formatDate(project.startDate)}`
+                              : `Bis ${formatDate(project.endDate)}`
+                          }
+                        </p>
+                      ) : (
+                        <span className="text-sm text-gray-400 dark:text-gray-500 italic">Nicht festgelegt</span>
+                      )}
+                    </div>
                   </div>
-                  <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium mb-2">{project.client}</span>
+
+                  {/* Beschreibung */}
                   {project.description && (
-                    <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">{project.description}</p>
-                  )}
-                  {(project.startDate || project.endDate) && (
-                    <p className="text-sm text-gray-400 dark:text-gray-500 flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {project.startDate && project.endDate
-                        ? `${formatDate(project.startDate)} – ${formatDate(project.endDate)}`
-                        : project.startDate
-                          ? `Ab ${formatDate(project.startDate)}`
-                          : `Bis ${formatDate(project.endDate)}`
-                      }
-                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">{project.description}</p>
                   )}
                 </>
               )}
@@ -270,6 +373,7 @@ const ProjectDetail = ({
                     name: project.name,
                     description: project.description || '',
                     client: project.client,
+                    projectNumber: project.projectNumber || '',
                     status: project.status,
                     startDate: project.startDate || '',
                     endDate: project.endDate || ''
@@ -290,76 +394,203 @@ const ProjectDetail = ({
         </div>
       </div>
 
-      {/* Kunde & Budget */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Kunde */}
-        <div className="bg-white dark:bg-gray-800 rounded-card border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Ansprechpartner</h2>
-            {editingSection !== 'client' && (
-              <button
-                onClick={() => handleStartEdit('client', project.clientContact || {})}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-              >
-                <Edit2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-              </button>
+      {/* Kunde & Ansprechpartner */}
+      <div className="bg-white dark:bg-gray-800 rounded-card border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Kunde</h2>
+          </div>
+          {client && onNavigateToClient && (
+            <button
+              onClick={() => onNavigateToClient(client.id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary hover:bg-primary/5 rounded-lg transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Im CRM öffnen
+            </button>
+          )}
+        </div>
+
+        {client ? (
+          // CRM-Kunde verknüpft - Zeige alle Details
+          <div className="space-y-4">
+            {/* Firmeninfo */}
+            <div className="flex items-start gap-4">
+              {/* Logo/Initialen */}
+              <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                {client.logo ? (
+                  <img src={client.logo} alt={client.companyName} className="w-14 h-14 rounded-xl object-cover" />
+                ) : (
+                  <span className="text-xl font-bold text-primary">
+                    {client.companyName?.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {client.companyName}
+                </h3>
+                <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {client.industry && (
+                    <span className="flex items-center gap-1">
+                      <Briefcase className="w-4 h-4" />
+                      {getIndustryLabel(client.industry)}
+                    </span>
+                  )}
+                  {client.address?.city && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />
+                      {client.address.city}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Ansprechpartner */}
+            {(() => {
+              const contact = client.contacts?.find(c => c.id === project.clientContactId)
+                || client.contacts?.find(c => c.isPrimary)
+                || client.contacts?.[0];
+
+              if (!contact) return null;
+
+              return (
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
+                    Ansprechpartner
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        {contact.firstName?.[0]}{contact.lastName?.[0]}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {contact.firstName} {contact.lastName}
+                        {contact.isPrimary && (
+                          <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded">
+                            Hauptkontakt
+                          </span>
+                        )}
+                      </p>
+                      {contact.position && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{contact.position}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 text-sm">
+                      {contact.email && (
+                        <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-primary">
+                          <Mail className="w-4 h-4" />
+                          {contact.email}
+                        </a>
+                      )}
+                      {contact.phone && (
+                        <a href={`tel:${contact.phone}`} className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-primary">
+                          <Phone className="w-4 h-4" />
+                          {contact.phone}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Bestellnummer */}
+            {project.purchaseOrderNumber && (
+              <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
+                  Bestellnummer (PO)
+                </p>
+                <p className="text-sm font-mono text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-gray-400" />
+                  {project.purchaseOrderNumber}
+                </p>
+              </div>
             )}
           </div>
-
-          {editingSection === 'client' ? (
-            <ClientEditForm
-              data={editData}
-              onChange={setEditData}
-              onSave={handleSaveEdit}
-              onCancel={() => setEditingSection(null)}
-            />
-          ) : (
-            <div className="space-y-2 text-sm">
-              {project.clientContact?.name && (
-                <p className="font-medium text-gray-900 dark:text-white">{project.clientContact.name}</p>
-              )}
-              {project.clientContact?.email && (
-                <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                  <Mail className="w-4 h-4" />
-                  {project.clientContact.email}
-                </p>
-              )}
-              {project.clientContact?.phone && (
-                <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  {project.clientContact.phone}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Ausgaben */}
-        <div className="bg-white dark:bg-gray-800 rounded-card border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Ausgaben</h2>
-
-          <div className="text-center py-2">
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">
-              {totalExpenses.toLocaleString('de-DE')} €
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Summe aller Phasen
-            </p>
+        ) : (
+          // Kein CRM-Kunde - Zeige Legacy-Daten oder "Kein Kunde"
+          <div>
+            {project.client ? (
+              <div className="space-y-3">
+                <p className="font-medium text-gray-900 dark:text-white">{project.client}</p>
+                {(project.contactPerson || project.clientContact?.name) && (
+                  <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
+                      Ansprechpartner
+                    </p>
+                    <div className="flex items-center gap-4 text-sm">
+                      <p className="font-medium text-gray-700 dark:text-gray-300">
+                        {project.contactPerson || project.clientContact?.name}
+                      </p>
+                      {(project.contactEmail || project.clientContact?.email) && (
+                        <p className="text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                          <Mail className="w-4 h-4" />
+                          {project.contactEmail || project.clientContact?.email}
+                        </p>
+                      )}
+                      {(project.contactPhone || project.clientContact?.phone) && (
+                        <p className="text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                          <Phone className="w-4 h-4" />
+                          {project.contactPhone || project.clientContact?.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+                Kein Kunde zugeordnet
+              </p>
+            )}
           </div>
+        )}
+      </div>
 
-          {project.phases?.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-              {project.phases.map(phase => (
-                <div key={phase.id} className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">{phase.name}</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {(phase.budget || 0).toLocaleString('de-DE')} €
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Gesamt-Ausgaben */}
+      <div className="bg-white dark:bg-gray-800 rounded-card border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Gesamt-Ausgaben</h2>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+            {totalExpenses.toLocaleString('de-DE')} €
+          </p>
         </div>
+
+        {project.phases?.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {project.phases.map(phase => {
+              const phaseBookings = projectBookings.filter(b => b.phaseId === phase.id);
+              const phaseExpenses = phaseBookings.reduce((sum, b) => sum + (b.totalCost || 0), 0);
+              const phaseDates = phaseBookings.flatMap(b => b.dates).sort();
+              const startDate = phaseDates[0];
+              const endDate = phaseDates[phaseDates.length - 1];
+
+              return (
+                <div key={phase.id} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">{phase.name}</p>
+                      {startDate && endDate && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {formatDate(startDate)} – {formatDate(endDate)}
+                        </p>
+                      )}
+                    </div>
+                    <span className="font-bold text-gray-900 dark:text-white">
+                      {phaseExpenses.toLocaleString('de-DE')} €
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Phasen */}
@@ -585,9 +816,19 @@ const ProjectDetail = ({
 
 /**
  * Phasen-Timeline - Visuelle Übersicht aller Phasen im Projekt
+ * Design wie die Freelancer-Timeline in PhaseDetail
  */
 const PhaseTimeline = ({ phases, bookings, onSelectPhase }) => {
   const [zoomLevel, setZoomLevel] = useState(2);
+  const timelineContainerRef = useRef(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  // Container-Breite messen für Zoom-Level 0
+  useEffect(() => {
+    if (timelineContainerRef.current) {
+      setContainerWidth(timelineContainerRef.current.clientWidth);
+    }
+  }, []);
 
   // Berechne effektive Zeiträume für alle Phasen
   const phaseRanges = useMemo(() => {
@@ -651,14 +892,24 @@ const PhaseTimeline = ({ phases, bookings, onSelectPhase }) => {
     return days;
   }, [totalRange]);
 
+  // Dynamische Zellbreite (Zoom 0 = fit-all)
+  const getCellWidth = useMemo(() => {
+    if (zoomLevel === 0 && containerWidth > 0 && timelineDays.length > 0) {
+      const nameColumnWidth = 200;
+      const availableWidth = containerWidth - nameColumnWidth - 20;
+      return Math.max(16, Math.floor(availableWidth / timelineDays.length));
+    }
+    return [20, 28, 36, 48, 64][zoomLevel];
+  }, [zoomLevel, containerWidth, timelineDays.length]);
+
   // Farben für Phasen mit Gradient
   const phaseColors = [
-    { gradient: 'from-blue-400 to-blue-500', shadow: 'shadow-blue-200', light: 'bg-blue-50', text: 'text-blue-700' },
-    { gradient: 'from-emerald-400 to-emerald-500', shadow: 'shadow-emerald-200', light: 'bg-emerald-50', text: 'text-emerald-700' },
-    { gradient: 'from-amber-400 to-amber-500', shadow: 'shadow-amber-200', light: 'bg-amber-50', text: 'text-amber-700' },
-    { gradient: 'from-violet-400 to-violet-500', shadow: 'shadow-violet-200', light: 'bg-violet-50', text: 'text-violet-700' },
-    { gradient: 'from-rose-400 to-rose-500', shadow: 'shadow-rose-200', light: 'bg-rose-50', text: 'text-rose-700' },
-    { gradient: 'from-cyan-400 to-cyan-500', shadow: 'shadow-cyan-200', light: 'bg-cyan-50', text: 'text-cyan-700' }
+    { gradient: 'from-blue-400 to-blue-500', shadow: 'shadow-blue-200 dark:shadow-blue-900', light: 'bg-blue-50', text: 'text-blue-700' },
+    { gradient: 'from-emerald-400 to-emerald-500', shadow: 'shadow-emerald-200 dark:shadow-emerald-900', light: 'bg-emerald-50', text: 'text-emerald-700' },
+    { gradient: 'from-amber-400 to-amber-500', shadow: 'shadow-amber-200 dark:shadow-amber-900', light: 'bg-amber-50', text: 'text-amber-700' },
+    { gradient: 'from-violet-400 to-violet-500', shadow: 'shadow-violet-200 dark:shadow-violet-900', light: 'bg-violet-50', text: 'text-violet-700' },
+    { gradient: 'from-rose-400 to-rose-500', shadow: 'shadow-rose-200 dark:shadow-rose-900', light: 'bg-rose-50', text: 'text-rose-700' },
+    { gradient: 'from-cyan-400 to-cyan-500', shadow: 'shadow-cyan-200 dark:shadow-cyan-900', light: 'bg-cyan-50', text: 'text-cyan-700' }
   ];
 
   if (phases.length === 0) return null;
@@ -701,15 +952,70 @@ const PhaseTimeline = ({ phases, bookings, onSelectPhase }) => {
       ) : (
         <>
           {/* Timeline Container */}
-          <div className="relative border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-900">
+          <div
+            ref={timelineContainerRef}
+            className="relative border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-900"
+          >
             <div className="overflow-x-auto">
               <div className="min-w-max">
-                {/* Header Row */}
+                {/* Month Header Row */}
+                <div className="flex bg-gray-100 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                  {/* Sticky empty cell for name column */}
+                  <div
+                    className="sticky left-0 z-20 bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700"
+                    style={{ width: '200px', minWidth: '200px' }}
+                  />
+                  {/* Month spans */}
+                  <div className="flex">
+                    {(() => {
+                      const months = [];
+                      let currentMonth = null;
+                      let startIndex = 0;
+
+                      timelineDays.forEach((day, index) => {
+                        const monthKey = `${day.date.getFullYear()}-${day.date.getMonth()}`;
+                        if (monthKey !== currentMonth) {
+                          if (currentMonth !== null) {
+                            months.push({
+                              key: currentMonth,
+                              label: timelineDays[startIndex].date.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }),
+                              span: index - startIndex
+                            });
+                          }
+                          currentMonth = monthKey;
+                          startIndex = index;
+                        }
+                      });
+                      // Push last month
+                      if (currentMonth !== null) {
+                        months.push({
+                          key: currentMonth,
+                          label: timelineDays[startIndex].date.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }),
+                          span: timelineDays.length - startIndex
+                        });
+                      }
+
+                      return months.map((month, idx) => (
+                        <div
+                          key={month.key}
+                          className={`flex items-center justify-center py-1.5 text-xs font-semibold text-primary border-r border-gray-200 dark:border-gray-700 ${
+                            idx > 0 ? 'border-l-2 border-l-primary/30' : ''
+                          }`}
+                          style={{ width: `${month.span * getCellWidth}px`, minWidth: `${month.span * getCellWidth}px` }}
+                        >
+                          {month.label}
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+
+                {/* Date Header Row */}
                 <div className="flex bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   {/* Sticky Phase Column Header */}
                   <div
-                    className="sticky left-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex items-center px-4 py-3"
-                    style={{ width: '160px', minWidth: '160px' }}
+                    className="sticky left-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex items-center px-4"
+                    style={{ width: '200px', minWidth: '200px' }}
                   >
                     <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Phasen
@@ -721,7 +1027,6 @@ const PhaseTimeline = ({ phases, bookings, onSelectPhase }) => {
                     {timelineDays.map((day, index) => {
                       const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6;
                       const isFirstOfMonth = day.date.getDate() === 1;
-                      const cellWidth = [20, 28, 36, 48, 64][zoomLevel];
 
                       return (
                         <div
@@ -729,19 +1034,14 @@ const PhaseTimeline = ({ phases, bookings, onSelectPhase }) => {
                           className={`flex flex-col items-center justify-center py-2 border-r border-gray-100 dark:border-gray-700 ${
                             isWeekend ? 'bg-gray-50 dark:bg-gray-900' : ''
                           } ${isFirstOfMonth ? 'border-l-2 border-l-gray-300 dark:border-l-gray-600' : ''}`}
-                          style={{ width: `${cellWidth}px`, minWidth: `${cellWidth}px` }}
+                          style={{ width: `${getCellWidth}px`, minWidth: `${getCellWidth}px` }}
                         >
-                          {(isFirstOfMonth || index === 0) && zoomLevel >= 1 && (
-                            <div className="text-[9px] font-medium text-gray-400 dark:text-gray-500 mb-0.5">
-                              {day.date.toLocaleDateString('de-DE', { month: 'short' })}
+                          {getCellWidth >= 28 && (
+                            <div className={`text-[10px] font-medium ${isWeekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'}`}>
+                              {day.date.toLocaleDateString('de-DE', { weekday: getCellWidth >= 40 ? 'short' : 'narrow' })}
                             </div>
                           )}
-                          {zoomLevel >= 2 && (
-                            <div className={`text-[9px] font-medium ${isWeekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'}`}>
-                              {day.date.toLocaleDateString('de-DE', { weekday: 'narrow' })}
-                            </div>
-                          )}
-                          <div className={`text-xs font-bold ${isWeekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}`}>
+                          <div className={`text-sm font-bold ${isWeekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}`}>
                             {day.date.getDate()}
                           </div>
                         </div>
@@ -753,38 +1053,32 @@ const PhaseTimeline = ({ phases, bookings, onSelectPhase }) => {
                 {/* Phase Rows */}
                 {phaseRanges.map((phase, rowIndex) => {
                   const color = phaseColors[rowIndex % phaseColors.length];
-                  const cellWidth = [20, 28, 36, 48, 64][zoomLevel];
-                  const cellHeight = [24, 28, 36, 44, 52][zoomLevel];
 
                   return (
                     <div
                       key={phase.id}
-                      className={`flex cursor-pointer ${rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50/50 dark:bg-gray-800/50'} hover:bg-blue-50/30 transition-colors`}
+                      className="flex cursor-pointer bg-white dark:bg-gray-800 hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-colors"
                       onClick={() => onSelectPhase?.(phase)}
                     >
                       {/* Sticky Phase Name */}
                       <div
-                        className={`sticky left-0 z-10 border-r border-gray-200 dark:border-gray-700 flex items-center gap-2 px-3 ${
-                          rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900'
-                        }`}
-                        style={{ width: '160px', minWidth: '160px', height: `${cellHeight + 8}px` }}
+                        className="sticky left-0 z-10 border-r border-gray-200 dark:border-gray-700 flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800"
+                        style={{ width: '200px', minWidth: '200px' }}
                       >
-                        <div className={`w-2 h-2 rounded-full bg-gradient-to-br ${color.gradient}`} />
+                        <div className={`w-3 h-3 rounded-full bg-gradient-to-br ${color.gradient} shadow-sm flex-shrink-0`} />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                             {phase.name}
                           </p>
-                          {zoomLevel >= 2 && (
-                            <p className="text-[10px] text-gray-400 dark:text-gray-500">
-                              {phase.bookingCount} Buchung{phase.bookingCount !== 1 ? 'en' : ''}
-                            </p>
-                          )}
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {phase.bookingCount} Buchung{phase.bookingCount !== 1 ? 'en' : ''}
+                          </p>
                         </div>
                         <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
                       </div>
 
                       {/* Day Cells */}
-                      <div className="flex">
+                      <div className="flex items-stretch">
                         {timelineDays.map(day => {
                           const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6;
                           const isInPhase = phase.effectiveStart && phase.effectiveEnd &&
@@ -798,22 +1092,20 @@ const PhaseTimeline = ({ phases, bookings, onSelectPhase }) => {
                           return (
                             <div
                               key={day.dateStr}
-                              className={`border-r border-gray-100 dark:border-gray-700 flex items-center justify-center p-0.5 ${
-                                isWeekend && !isInPhase ? 'bg-gray-100 dark:bg-gray-700' : ''
+                              className={`border-r border-gray-100 dark:border-gray-700 flex items-center justify-center py-1.5 px-0.5 ${
+                                isWeekend ? 'bg-gray-100/50 dark:bg-gray-700/30' : ''
                               }`}
-                              style={{ width: `${cellWidth}px`, minWidth: `${cellWidth}px`, height: `${cellHeight + 8}px` }}
+                              style={{ width: `${getCellWidth}px`, minWidth: `${getCellWidth}px` }}
                             >
-                              {isInPhase ? (
+                              {isInPhase && (
                                 <div
-                                  className={`w-full h-full bg-gradient-to-b ${color.gradient} shadow-sm ${color.shadow} ${
+                                  className={`w-full h-full min-h-[28px] bg-gradient-to-b ${color.gradient} shadow-sm ${color.shadow} ${
                                     isPhaseStart && isPhaseEnd ? 'rounded-lg' :
                                     isPhaseStart ? 'rounded-l-lg' :
                                     isPhaseEnd ? 'rounded-r-lg' : ''
-                                  } ${hasBooking ? 'opacity-100' : 'opacity-40'} transition-all hover:opacity-100`}
+                                  } ${hasBooking ? 'opacity-100' : 'opacity-40'} transition-all hover:scale-105 hover:z-10`}
                                   title={`${phase.name}\n${formatDate(phase.effectiveStart)} - ${formatDate(phase.effectiveEnd)}`}
                                 />
-                              ) : (
-                                <div className={`w-full h-full ${isWeekend ? '' : 'bg-gray-50 dark:bg-gray-900'} rounded`} />
                               )}
                             </div>
                           );
@@ -826,14 +1118,15 @@ const PhaseTimeline = ({ phases, bookings, onSelectPhase }) => {
             </div>
           </div>
 
-          {/* Footer */}
+          {/* Legende */}
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-6 text-xs">
+              <span className="text-gray-400 dark:text-gray-500 font-medium">Phasen:</span>
               {phaseRanges.slice(0, 4).map((phase, index) => {
                 const color = phaseColors[index % phaseColors.length];
                 return (
-                  <span key={phase.id} className="flex items-center gap-1.5">
-                    <span className={`w-3 h-3 rounded bg-gradient-to-b ${color.gradient} shadow-sm`} />
+                  <span key={phase.id} className="flex items-center gap-2">
+                    <span className={`w-4 h-4 rounded bg-gradient-to-b ${color.gradient} shadow-sm`} />
                     <span className="text-gray-600 dark:text-gray-400 truncate max-w-[100px]">{phase.name}</span>
                   </span>
                 );
@@ -865,9 +1158,50 @@ const PhaseCard = ({
   onSelectPhase
 }) => {
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const colorPickerRef = useRef(null);
+  const buttonRef = useRef(null);
+
+  // Click-Outside Handler für Color Picker
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(event.target) &&
+          buttonRef.current && !buttonRef.current.contains(event.target)) {
+        setShowColorPicker(false);
+      }
+    };
+
+    if (showColorPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showColorPicker]);
+
+  // Position des Dropdowns berechnen
+  const handleOpenColorPicker = (e) => {
+    e.stopPropagation();
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.top - 10,
+        left: rect.right - 250
+      });
+    }
+    setShowColorPicker(!showColorPicker);
+  };
+
   const confirmedCount = bookings.filter(b => isConfirmedStatus(b.status)).length;
   const pendingCount = bookings.filter(b => isPendingStatus(b.status)).length;
   const totalBookings = bookings.length;
+
+  // Berechne Ausgaben (Summe aller Buchungskosten)
+  const totalSpent = useMemo(() =>
+    bookings.reduce((sum, b) => sum + (b.totalCost || 0), 0),
+    [bookings]
+  );
 
   // Berechne effektiven Zeitraum aus Buchungen
   const effectiveDateRange = useMemo(() => {
@@ -887,17 +1221,36 @@ const PhaseCard = ({
     return { startDate, endDate };
   }, [phase.startDate, phase.endDate, bookings]);
 
-  // Hole die Farbe der Phase
-  const phaseColor = PHASE_COLORS.find(c => c.id === phase.color) || PHASE_COLORS[0];
+  // Hole die Farbe der Phase (unterstützt vordefinierte und Custom-Farben)
+  const isCustomColor = phase.color?.startsWith('#');
+  const phaseColor = isCustomColor
+    ? null
+    : (PHASE_COLORS.find(c => c.id === phase.color) || PHASE_COLORS[0]);
+
+  // Custom Color Styles
+  const customStyles = isCustomColor ? {
+    backgroundColor: hexToRgba(phase.color, 0.1),
+    borderColor: hexToRgba(phase.color, 0.3),
+    '--glow-color': phase.color
+  } : {
+    '--glow-color': phaseColor?.glow || 'gray'
+  };
 
   const handleColorChange = (colorId) => {
     onUpdatePhase?.(projectId, phase.id, { color: colorId });
     setShowColorPicker(false);
   };
 
+  const handleCustomColorChange = (e) => {
+    onUpdatePhase?.(projectId, phase.id, { color: e.target.value });
+  };
+
   return (
     <div
-      className={`border rounded-xl p-4 cursor-pointer hover:shadow-md transition-all group ${phaseColor.bg} ${phaseColor.border}`}
+      className={`relative border rounded-xl p-4 cursor-pointer transition-all group ${
+        isCustomColor ? '' : `${phaseColor.bg} ${phaseColor.border}`
+      } hover:shadow-[0_0_20px_var(--glow-color)]`}
+      style={customStyles}
       onClick={() => onSelectPhase?.(phase)}
     >
       <div className="flex justify-between items-center">
@@ -908,19 +1261,19 @@ const PhaseCard = ({
               {effectiveDateRange.startDate && effectiveDateRange.endDate
                 ? `${formatDate(effectiveDateRange.startDate)} – ${formatDate(effectiveDateRange.endDate)}`
                 : 'Kein Datum festgelegt'}
-              {phase.budget > 0 && ` • ${phase.budget.toLocaleString('de-DE')} €`}
+              {totalSpent > 0 && ` • ${totalSpent.toLocaleString('de-DE')} €`}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {confirmedCount > 0 && (
-            <span className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-medium">
-              {confirmedCount} Fix
+            <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 rounded-lg text-xs font-medium">
+              {confirmedCount} {confirmedCount === 1 ? 'Buchung' : 'Buchungen'}
             </span>
           )}
           {pendingCount > 0 && (
-            <span className="px-2 py-1 bg-violet-50 text-violet-700 border border-violet-100 rounded-lg text-xs font-medium">
-              {pendingCount} Pending
+            <span className="px-2 py-1 bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-800 rounded-lg text-xs font-medium">
+              {pendingCount} {pendingCount === 1 ? 'Anfrage' : 'Anfragen'}
             </span>
           )}
           {totalBookings === 0 && (
@@ -929,40 +1282,76 @@ const PhaseCard = ({
             </span>
           )}
           {/* Color Picker Button */}
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowColorPicker(!showColorPicker);
+          <button
+            ref={buttonRef}
+            onClick={handleOpenColorPicker}
+            className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+            title="Farbe ändern"
+          >
+            <Palette className="w-4 h-4" />
+          </button>
+
+          {/* Color Picker Dropdown - fixed positioning */}
+          {showColorPicker && (
+            <div
+              ref={colorPickerRef}
+              className="fixed p-4 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-[9999]"
+              style={{
+                top: `${dropdownPosition.top}px`,
+                left: `${dropdownPosition.left}px`,
+                transform: 'translateY(-100%)'
               }}
-              className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-              title="Farbe ändern"
+              onClick={(e) => e.stopPropagation()}
             >
-              <Palette className="w-4 h-4" />
-            </button>
-            {/* Color Picker Dropdown */}
-            {showColorPicker && (
-              <div
-                className="absolute right-0 top-full mt-1 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex gap-1.5 flex-wrap w-[140px]">
-                  {PHASE_COLORS.map(color => (
-                    <button
-                      key={color.id}
-                      onClick={() => handleColorChange(color.id)}
-                      className={`w-6 h-6 rounded-md ${color.preview} transition-all ${
-                        phase.color === color.id || (!phase.color && color.id === 'gray')
-                          ? 'ring-2 ring-offset-1 ring-primary scale-110'
-                          : 'hover:scale-110'
-                      }`}
-                      title={color.id}
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Phasenfarbe wählen</p>
+
+              {/* Vordefinierte Farben */}
+              <div className="flex gap-2 flex-wrap w-[220px] mb-4">
+                {PHASE_COLORS.map(color => (
+                  <button
+                    key={color.id}
+                    onClick={() => handleColorChange(color.id)}
+                    className={`w-8 h-8 rounded-lg ${color.preview} transition-all ${
+                      phase.color === color.id || (!phase.color && color.id === 'gray')
+                        ? 'ring-2 ring-offset-2 ring-primary scale-110'
+                        : 'hover:scale-110'
+                    }`}
+                    title={color.id}
+                  />
+                ))}
+              </div>
+
+              {/* Custom Color Picker - eigene Zeile */}
+              <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Eigene Farbe</p>
+                <div className="flex items-center gap-3">
+                  <label
+                    className={`w-10 h-10 rounded-lg cursor-pointer transition-all overflow-hidden border-2 ${
+                      isCustomColor
+                        ? 'ring-2 ring-offset-2 ring-primary'
+                        : 'border-dashed border-gray-300 dark:border-gray-600 hover:border-primary'
+                    }`}
+                    style={isCustomColor ? { backgroundColor: phase.color, borderStyle: 'solid', borderColor: phase.color } : {}}
+                  >
+                    <input
+                      type="color"
+                      value={isCustomColor ? phase.color : '#6366f1'}
+                      onChange={handleCustomColorChange}
+                      className="w-14 h-14 -m-2 cursor-pointer"
                     />
-                  ))}
+                  </label>
+                  {isCustomColor ? (
+                    <div className="flex-1">
+                      <p className="text-sm font-mono text-gray-700 dark:text-gray-300">{phase.color}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Eigene Farbe aktiv</p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Klicken zum Auswählen</p>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -992,7 +1381,12 @@ const TeamMemberCard = ({ freelancer, bookings, onConvertToFix }) => {
     <div className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
       <div className="flex justify-between items-start">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">{freelancer.avatar}</span>
+          <ProfileAvatar
+            imageUrl={freelancer.profileImage}
+            firstName={freelancer.firstName}
+            lastName={freelancer.lastName}
+            size="md"
+          />
           <div>
             <p className="font-medium text-gray-900 dark:text-white">{freelancer.firstName} {freelancer.lastName}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">{freelancer.professions?.[0]}</p>
@@ -1048,20 +1442,20 @@ const OverviewEditForm = ({ data, onChange, onSave, onCancel }) => {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Projektname</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Projektname</label>
           <input
             type="text"
             value={data.name || ''}
             onChange={(e) => onChange({ ...data, name: e.target.value })}
-            className="w-full p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2.5 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Status</label>
           <select
             value={data.status || PROJECT_STATUS.PLANNING}
             onChange={(e) => onChange({ ...data, status: e.target.value })}
-            className="w-full p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2.5 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
           >
             {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
@@ -1070,32 +1464,44 @@ const OverviewEditForm = ({ data, onChange, onSave, onCancel }) => {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kunde</label>
-        <input
-          type="text"
-          value={data.client || ''}
-          onChange={(e) => onChange({ ...data, client: e.target.value })}
-          className="w-full p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Kunde</label>
+          <input
+            type="text"
+            value={data.client || ''}
+            onChange={(e) => onChange({ ...data, client: e.target.value })}
+            className="w-full p-2.5 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Projektnummer</label>
+          <input
+            type="text"
+            value={data.projectNumber || ''}
+            onChange={(e) => onChange({ ...data, projectNumber: e.target.value })}
+            placeholder="z.B. PRJ-2025-001"
+            className="w-full p-2.5 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+          />
+        </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Beschreibung</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Beschreibung</label>
         <textarea
           value={data.description || ''}
           onChange={(e) => onChange({ ...data, description: e.target.value })}
           rows={2}
-          className="w-full p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 resize-none"
+          className="w-full p-2.5 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors resize-none"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Zeitraum</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Zeitraum</label>
         <button
           type="button"
           onClick={() => setShowDatePicker(!showDatePicker)}
-          className="w-full p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 text-left flex items-center justify-between hover:border-gray-400"
+          className="w-full p-2.5 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 text-left flex items-center justify-between hover:border-gray-400 transition-colors"
         >
           <span className={data.startDate ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}>
             {data.startDate && data.endDate
@@ -1115,11 +1521,17 @@ const OverviewEditForm = ({ data, onChange, onSave, onCancel }) => {
         )}
       </div>
 
-      <div className="flex gap-2 pt-2">
-        <button onClick={onCancel} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white">
+      <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <button
+          onClick={onCancel}
+          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+        >
           Abbrechen
         </button>
-        <button onClick={onSave} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+        <button
+          onClick={onSave}
+          className="flex-1 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:opacity-90 transition-opacity"
+        >
           Speichern
         </button>
       </div>
@@ -1128,39 +1540,45 @@ const OverviewEditForm = ({ data, onChange, onSave, onCancel }) => {
 };
 
 const ClientEditForm = ({ data, onChange, onSave, onCancel }) => (
-  <div className="space-y-3">
+  <div className="space-y-4">
     <div>
-      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Ansprechpartner</label>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Ansprechpartner</label>
       <input
         type="text"
         value={data.name || ''}
         onChange={(e) => onChange({ ...data, name: e.target.value })}
-        className="w-full p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 text-sm focus:ring-2 focus:ring-blue-500"
+        className="w-full p-2.5 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
       />
     </div>
     <div>
-      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">E-Mail</label>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">E-Mail</label>
       <input
         type="email"
         value={data.email || ''}
         onChange={(e) => onChange({ ...data, email: e.target.value })}
-        className="w-full p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 text-sm focus:ring-2 focus:ring-blue-500"
+        className="w-full p-2.5 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
       />
     </div>
     <div>
-      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Telefon</label>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Telefon</label>
       <input
         type="tel"
         value={data.phone || ''}
         onChange={(e) => onChange({ ...data, phone: e.target.value })}
-        className="w-full p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 text-sm focus:ring-2 focus:ring-blue-500"
+        className="w-full p-2.5 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
       />
     </div>
-    <div className="flex gap-2 pt-2">
-      <button onClick={onCancel} className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white">
+    <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <button
+        onClick={onCancel}
+        className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+      >
         Abbrechen
       </button>
-      <button onClick={onSave} className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+      <button
+        onClick={onSave}
+        className="flex-1 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:opacity-90 transition-opacity"
+      >
         Speichern
       </button>
     </div>
@@ -1207,7 +1625,7 @@ const AddPhaseModal = ({ projectId, onSave, onClose }) => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hintergrundfarbe</label>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
             {PHASE_COLORS.map(color => (
               <button
                 key={color.id}
@@ -1221,7 +1639,29 @@ const AddPhaseModal = ({ projectId, onSave, onClose }) => {
                 title={color.id}
               />
             ))}
+            {/* Custom Color Picker */}
+            <label className={`w-8 h-8 rounded-lg cursor-pointer transition-all overflow-hidden border-2 border-dashed border-gray-300 dark:border-gray-600 ${
+              formData.color?.startsWith('#') ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105 hover:border-gray-400'
+            }`}
+              style={formData.color?.startsWith('#') ? { backgroundColor: formData.color, borderStyle: 'solid', borderColor: formData.color } : {}}
+              title="Eigene Farbe wählen"
+            >
+              <input
+                type="color"
+                value={formData.color?.startsWith('#') ? formData.color : '#6366f1'}
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                className="w-12 h-12 -m-2 cursor-pointer opacity-0"
+              />
+              {!formData.color?.startsWith('#') && (
+                <span className="flex items-center justify-center w-full h-full text-gray-400 text-lg">+</span>
+              )}
+            </label>
           </div>
+          {formData.color?.startsWith('#') && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Custom: {formData.color}
+            </p>
+          )}
         </div>
 
         <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">

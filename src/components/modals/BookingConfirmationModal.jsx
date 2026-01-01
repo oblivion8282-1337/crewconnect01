@@ -3,6 +3,26 @@ import { X, Calendar, User, Euro, FileText, MessageSquare, CheckCircle, ChevronD
 import { formatDateShort } from '../../utils/dateUtils';
 import { ProfileAvatar } from '../shared/ProfileField';
 
+// Vordefinierte Farben für Projekte/Phasen
+const PHASE_COLORS = [
+  { id: 'gray', bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-700 dark:text-gray-300' },
+  { id: 'blue', bg: 'bg-blue-100 dark:bg-blue-900/40', text: 'text-blue-700 dark:text-blue-300' },
+  { id: 'emerald', bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300' },
+  { id: 'amber', bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-700 dark:text-amber-300' },
+  { id: 'violet', bg: 'bg-violet-100 dark:bg-violet-900/40', text: 'text-violet-700 dark:text-violet-300' },
+  { id: 'rose', bg: 'bg-rose-100 dark:bg-rose-900/40', text: 'text-rose-700 dark:text-rose-300' },
+  { id: 'cyan', bg: 'bg-cyan-100 dark:bg-cyan-900/40', text: 'text-cyan-700 dark:text-cyan-300' },
+  { id: 'orange', bg: 'bg-orange-100 dark:bg-orange-900/40', text: 'text-orange-700 dark:text-orange-300' }
+];
+
+// Hilfsfunktion um Hex-Farbe aufzuhellen (für Hintergrund)
+const hexToRgba = (hex, alpha) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 /**
  * BookingConfirmationModal - Bestätigung vor einer Buchung mit Zusammenfassung und Nachrichtenfeld
  */
@@ -60,6 +80,50 @@ const BookingConfirmationModal = ({
     }
     return `${formatDateShort(firstDay)} – ${formatDateShort(lastDay)}`;
   };
+
+  // Projekt-Farbe berechnen
+  const isProjectCustomColor = project?.color?.startsWith('#');
+  const projectColorDef = isProjectCustomColor
+    ? null
+    : (PHASE_COLORS.find(c => c.id === project?.color) || PHASE_COLORS[1]); // Default: blue
+
+  const projectBgStyle = isProjectCustomColor ? {
+    backgroundColor: hexToRgba(project.color, 0.15)
+  } : {};
+
+  const projectBgClass = isProjectCustomColor
+    ? ''
+    : projectColorDef.bg;
+
+  const projectTextStyle = isProjectCustomColor ? {
+    color: project.color
+  } : {};
+
+  const projectTextClass = isProjectCustomColor
+    ? 'font-medium'
+    : `font-medium ${projectColorDef.text}`;
+
+  // Phase-Farbe berechnen
+  const isPhaseCustomColor = phase?.color?.startsWith('#');
+  const phaseColorDef = isPhaseCustomColor
+    ? null
+    : (PHASE_COLORS.find(c => c.id === phase?.color) || PHASE_COLORS[0]); // Default: gray
+
+  const phaseBgStyle = isPhaseCustomColor ? {
+    backgroundColor: hexToRgba(phase.color, 0.15)
+  } : {};
+
+  const phaseBgClass = isPhaseCustomColor
+    ? ''
+    : phaseColorDef.bg;
+
+  const phaseTextStyle = isPhaseCustomColor ? {
+    color: phase.color
+  } : {};
+
+  const phaseTextClass = isPhaseCustomColor
+    ? 'font-medium'
+    : `font-medium ${phaseColorDef.text}`;
 
   return (
     <div
@@ -138,19 +202,25 @@ const BookingConfirmationModal = ({
 
           {/* Projekt & Phase */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+            <div
+              className={`p-3 rounded-lg ${projectBgClass}`}
+              style={projectBgStyle}
+            >
               <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
                 <FileText className="w-4 h-4" />
                 <span className="text-xs font-medium">Projekt</span>
               </div>
-              <p className="font-medium text-gray-900 dark:text-white">{project.name}</p>
+              <p className={projectTextClass} style={projectTextStyle}>{project.name}</p>
             </div>
-            <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+            <div
+              className={`p-3 rounded-lg ${phaseBgClass}`}
+              style={phaseBgStyle}
+            >
               <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
                 <Calendar className="w-4 h-4" />
                 <span className="text-xs font-medium">Phase</span>
               </div>
-              <p className="font-medium text-gray-900 dark:text-white">{phase.name}</p>
+              <p className={phaseTextClass} style={phaseTextStyle}>{phase.name}</p>
             </div>
           </div>
 

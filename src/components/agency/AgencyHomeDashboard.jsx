@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Wallet
 } from 'lucide-react';
+import { ProfileAvatar } from '../shared/ProfileField';
 import { createDateKey, formatDateShort } from '../../utils/dateUtils';
 import {
   BOOKING_STATUS,
@@ -175,7 +176,9 @@ const AgencyHomeDashboard = ({
       return {
         id: fId,
         name: freelancer ? `${freelancer.firstName} ${freelancer.lastName}` : `Freelancer ${fId}`,
-        avatar: freelancer?.avatar || '👤',
+        profileImage: freelancer?.profileImage,
+        firstName: freelancer?.firstName || 'Freelancer',
+        lastName: freelancer?.lastName || '',
         dayStatuses
       };
     });
@@ -669,7 +672,12 @@ const TeamTimeline = ({ data }) => {
           {data.freelancerRows.map(row => (
             <div key={row.id} className="flex items-center">
               <div className="w-32 flex-shrink-0 flex items-center gap-2 pr-2">
-                <span className="text-lg">{row.avatar}</span>
+                <ProfileAvatar
+                  imageUrl={row.profileImage}
+                  firstName={row.firstName}
+                  lastName={row.lastName}
+                  size="xs"
+                />
                 <span className="text-xs text-gray-700 dark:text-gray-300 truncate">{row.name}</span>
               </div>
               {data.days.map(day => {
