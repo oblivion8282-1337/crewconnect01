@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "005-mark-all-messages-as-read",
+  "state": "complete",
+  "subtasks": {
+    "completed": 4,
+    "total": 4,
+    "in_progress": 0,
+    "failed": 0
+  },
+  "phase": {
+    "current": "End-to-End Integration",
+    "id": null,
+    "total": 1
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 4,
+    "started_at": "2026-01-02T17:22:17.769964"
+  },
+  "last_update": "2026-01-02T17:33:10.516523"
+}

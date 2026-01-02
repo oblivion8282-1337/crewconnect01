@@ -239,6 +239,7 @@ const AppContent = () => {
     getChatsForFreelancer,
     getUnreadCount,
     markChatAsRead,
+    markAllMessagesAsRead,
     sendMessage,
     sendBookingRef,
     updateBookingRefStatus,
@@ -546,7 +547,10 @@ const AppContent = () => {
           unreadCount={unreadNotificationCount}
           showNotifications={showNotifications}
           onToggleNotifications={() => setShowNotifications(!showNotifications)}
-          onMarkAllAsRead={() => markNotificationsAsRead(userRole)}
+          onMarkAllAsRead={() => {
+            markNotificationsAsRead(userRole);
+            markAllMessagesAsRead(userRole);
+          }}
           onMarkAsRead={markNotificationAsRead}
           freelancerId={freelancerId}
           agencyId={agencyId}
