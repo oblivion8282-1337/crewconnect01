@@ -208,6 +208,32 @@ export const useMessages = () => {
     }));
   }, []);
 
+  /**
+   * Alle Nachrichten als gelesen markieren
+   */
+  const markAllMessagesAsRead = useCallback((userType) => {
+    const now = new Date().toISOString();
+
+    setChats(prev => prev.map(chat => {
+      const updatedMessages = chat.messages.map(msg => {
+        // Nur Nachrichten des anderen Teilnehmers als gelesen markieren
+        if (msg.senderType !== userType && !msg.readAt) {
+          return { ...msg, readAt: now };
+        }
+        return msg;
+      });
+
+      return {
+        ...chat,
+        messages: updatedMessages,
+        ...(userType === 'agency'
+          ? { unreadCountAgency: 0 }
+          : { unreadCountFreelancer: 0 }
+        )
+      };
+    }));
+  }, []);
+
   // === Nachrichten-Funktionen ===
 
   /**
@@ -329,6 +355,7 @@ export const useMessages = () => {
     getChatsForFreelancer,
     getUnreadCount,
     markChatAsRead,
+    markAllMessagesAsRead,
     // Nachrichten-Funktionen
     sendMessage,
     sendBookingRef,
