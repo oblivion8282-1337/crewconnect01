@@ -1,15 +1,15 @@
 {
   "active": true,
   "spec": "005-mark-all-messages-as-read",
-  "state": "building",
+  "state": "complete",
   "subtasks": {
-    "completed": 0,
+    "completed": 4,
     "total": 4,
-    "in_progress": 1,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
-    "current": "Hook Implementation",
+    "current": "End-to-End Integration",
     "id": null,
     "total": 1
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 1,
+    "number": 4,
     "started_at": "2026-01-02T17:22:17.769964"
   },
-  "last_update": "2026-01-02T17:22:17.774314"
+  "last_update": "2026-01-02T17:33:10.516523"
 }
