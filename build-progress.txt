@@ -1,0 +1,223 @@
+=== AUTO-BUILD PROGRESS ===
+
+Project: crewconnect - Mark All Messages as Read Feature
+Workspace: /home/michael/Dokumente/GitHub/crewconnect01
+Started: 2026-01-02T17:25:00Z
+
+Workflow Type: feature
+Rationale: New feature extending existing messaging system with bulk "mark all as read" capability. Builds on established markChatAsRead() pattern, applies it across entire message dataset. Single service, low-risk implementation.
+
+Session 1 (Planner Agent):
+✓ Completed PHASE 0: Deep Codebase Investigation
+  - Analyzed project structure (React + Vite frontend)
+  - Located message system in src/hooks/useMessages.js
+  - Identified NotificationCenter component for UI integration
+  - Found existing markChatAsRead() pattern to follow
+  - Examined ChatList and ChatView components
+
+✓ Completed PHASE 1: Context Files
+  - Updated context.json with detailed implementation guidance
+  - Documented patterns from existing code
+  - Identified files to modify and reference
+  - Mapped data model structures
+
+✓ Completed PHASE 2: Implementation Plan
+  - Created subtask-based implementation_plan.json
+  - Defined 4 phases with 4 subtasks
+  - Established dependencies between phases
+  - Identified verification strategies
+
+✓ Completed PHASE 3: Setup Files
+  - Created init.sh startup script
+  - Script configures development environment
+  - Provides service startup and monitoring
+
+Phase Summary:
+
+Phase 1: Hook Implementation
+  - Subtask 1.1: Add markAllMessagesAsRead(userType) function to useMessages.js
+    * Pattern: Follow markChatAsRead() (lines 186-209)
+    * Logic: Iterate all chats, mark messages from other party as read, reset unreadCount
+    * Status: pending
+
+Phase 2: Export New Function
+  - Subtask 2.1: Add markAllMessagesAsRead to hook return object
+    * Add alongside other chat functions in return statement (lines 323-337)
+    * Status: pending
+
+Phase 3: NotificationCenter Integration
+  - Subtask 3.1: Wire onMarkAllAsRead callback to call new function
+    * Verify callback is called on "Alle gelesen" button click
+    * Status: pending
+
+Phase 4: End-to-End Integration
+  - Subtask 4.1: Verify complete flow works
+    * Test unread badges disappear after clicking button
+    * Verify all unread counts reset to 0
+    * Status: pending
+
+Services Involved:
+- main (React Frontend): Primary service containing all code changes
+
+Tech Stack:
+- Language: JavaScript
+- Framework: React 19.2.0
+- Build Tool: Vite
+- Styling: Tailwind CSS
+- Package Manager: npm
+- Port: 3000
+
+Files to Modify:
+1. src/hooks/useMessages.js
+   - Add markAllMessagesAsRead function (after markChatAsRead)
+   - Add function to return object
+
+2. src/components/NotificationCenter.jsx
+   - Verify onMarkAllAsRead callback is wired to button click
+
+Files to Reference:
+- src/hooks/useMessages.js (lines 186-209: markChatAsRead pattern)
+- src/hooks/useMessages.js (lines 171-181: getUnreadCount pattern)
+- src/components/NotificationCenter.jsx (lines 56-62: 'Alle gelesen' button)
+
+Edge Cases Identified:
+✓ Empty chat history - Function should handle without error
+✓ No unread messages - Execute without changes
+✓ Mixed read/unread state - Update only unread messages
+✓ Single message chats - Handle correctly
+✓ Concurrent user types - Use userType parameter for correct count field
+
+Parallelism Analysis:
+- Max parallel phases: 2
+- Recommended workers: 1
+- Parallel groups: Phases 1 and 3 could run in parallel but sequential is safer
+- Speedup estimate: Sequential execution for safety
+- Note: Hook export (phase 2) must complete before UI integration (phase 3)
+
+Complexity Assessment: Standard (Low Risk)
+- Confidence: 92%
+- Estimated files: 4
+- Estimated services: 1
+- No external integrations
+- No infrastructure changes
+- Pattern exists in codebase
+- Test types required: unit (via browser verification)
+- Security scanning: Not required
+- Staging deployment: Not required
+
+Success Criteria (from spec):
+1. [ ] New markAllMessagesAsRead(userType) function in useMessages.js
+2. [ ] Function exported from hook's return object
+3. [ ] All unread messages marked as read when called
+4. [ ] All unreadCountAgency reset to 0 if called with 'agency'
+5. [ ] All unreadCountFreelancer reset to 0 if called with 'freelancer'
+6. [ ] NotificationCenter "Alle gelesen" button wired to function
+7. [ ] No console errors in browser dev tools
+8. [ ] Existing markChatAsRead() still works correctly
+9. [ ] Existing unread count calculations still work
+10. [ ] Feature verified via browser by clicking "Alle gelesen"
+
+Verification Strategy:
+- Risk Level: low
+- Browser Manual Verification: Required (blocking)
+  - Check all unread badges disappear after clicking "Alle gelesen"
+  - Verify no console errors
+  - Verify ChatList unread counts are 0
+- Code Pattern Verification: Required (blocking)
+  - Ensure markAllMessagesAsRead follows markChatAsRead pattern
+  - Verify useCallback usage
+  - Verify proper message and unread count updates
+
+QA Acceptance:
+- Unit Tests: Not required (state logic simple, verified by browser test)
+- Integration Tests: Not required (single service)
+- E2E Tests: Not required (manual browser verification sufficient)
+- Browser Verification: REQUIRED
+  - NotificationCenter renders correctly
+  - Button visible when unreadCount > 0
+  - All badges disappear after clicking button
+  - No console errors
+  - Existing functionality still works
+- Database Verification: Not applicable (client-side only)
+- Regression Testing: REQUIRED
+  - markChatAsRead() still works
+  - Unread counts still calculated correctly
+  - New messages still increment counts after bulk marking
+
+=== STARTUP COMMAND ===
+
+To run the dev environment:
+
+  cd /home/michael/Dokumente/GitHub/crewconnect01
+  ./init.sh
+
+Or directly with npm:
+
+  npm run dev
+
+Browser will be available at: http://localhost:3000
+
+=== GIT INFORMATION ===
+
+Current Branch: Auto-managed by orchestrator
+Commit Strategy: Create commits for each completed subtask
+Commit Message Format: [subtask-id] Brief description
+
+First implementation subtask:
+  git add src/hooks/useMessages.js
+  git commit -m "subtask-1-1: Add markAllMessagesAsRead function to useMessages hook"
+
+=== IMPLEMENTATION NOTES ===
+
+Important Patterns to Follow:
+1. Use useCallback hook for memoization (like markChatAsRead)
+2. Generate timestamps: new Date().toISOString()
+3. Mark only messages from OTHER party: msg.senderType !== userType
+4. Only mark unread messages: !msg.readAt
+5. Reset correct unreadCount: userType === 'agency' ? unreadCountAgency : unreadCountFreelancer
+6. Use spread operator for immutable updates
+
+Code Template (from markChatAsRead):
+```javascript
+const markAllMessagesAsRead = useCallback((userType) => {
+  const now = new Date().toISOString();
+
+  setChats(prev => prev.map(chat => {
+    // Map all messages, not just one chat
+    const updatedMessages = chat.messages.map(msg => {
+      if (msg.senderType !== userType && !msg.readAt) {
+        return { ...msg, readAt: now };
+      }
+      return msg;
+    });
+
+    return {
+      ...chat,
+      messages: updatedMessages,
+      ...(userType === 'agency'
+        ? { unreadCountAgency: 0 }
+        : { unreadCountFreelancer: 0 }
+      )
+    };
+  }));
+}, []);
+```
+
+Critical Implementation Notes:
+- Do NOT modify messages that are already read (check !msg.readAt)
+- Do NOT update read status for user's own messages (check senderType)
+- Do NOT forget userType parameter
+- Do NOT skip returning function from hook
+- Do NOT use other patterns - follow existing code style exactly
+
+Next Coder Agent Tasks:
+1. Read implementation_plan.json from spec directory
+2. Start with subtask-1-1: Implement markAllMessagesAsRead function
+3. Verify with grep command before moving to next subtask
+4. After subtask completion, mark status as "in_progress" or "completed"
+5. Create git commit for each completed subtask
+6. Proceed through phases respecting dependencies
+
+=== END SESSION 1 ===
+Completed: 2026-01-02T17:25:00Z
+Status: Ready for coder agent to begin implementation

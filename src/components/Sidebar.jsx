@@ -40,7 +40,7 @@ const AGENCY_NAV_ITEMS = [
   { id: 'bookings', icon: CheckCircle, label: 'Buchungen', showBookingsBadge: true },
   { id: 'messages', icon: MessageCircle, label: 'Nachrichten', showMessageBadge: true },
   { id: 'freelancer-search', icon: Search, label: 'Freelancer' },
-  { id: 'crew', icon: Users, label: 'Meine Crew' },
+  { id: 'crew', icon: Users, label: 'Meine Freelancer' },
   { id: 'profile', icon: User, label: 'Profil' }
 ];
 

@@ -181,7 +181,7 @@ const CrewListsPage = ({
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meine Crew</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meine Freelancer</h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1">
               {crewFreelancers.length} Freelancer • Favoriten und Crew-Listen verwalten
             </p>
