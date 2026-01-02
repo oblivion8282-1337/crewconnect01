@@ -111,7 +111,7 @@ const ProjectCrewSection = ({
                   {member.avatar ? (
                     <img
                       src={member.avatar}
-                      alt={member.name}
+                      alt={`${member.firstName} ${member.lastName}`}
                       className="w-6 h-6 rounded-full object-cover"
                     />
                   ) : (
@@ -120,7 +120,7 @@ const ProjectCrewSection = ({
                     </div>
                   )}
                   <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {member.name}
+                    {member.firstName} {member.lastName}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
                     ({totalDays} Tage)
@@ -193,7 +193,7 @@ const ProjectCrewSection = ({
                                 {member.avatar ? (
                                   <img
                                     src={member.avatar}
-                                    alt={member.name}
+                                    alt={`${member.firstName} ${member.lastName}`}
                                     className="w-8 h-8 rounded-full object-cover"
                                   />
                                 ) : (
@@ -203,7 +203,7 @@ const ProjectCrewSection = ({
                                 )}
                                 <div>
                                   <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {member.name}
+                                    {member.firstName} {member.lastName}
                                   </div>
                                   <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                     <Calendar className="w-3 h-3" />
@@ -353,7 +353,7 @@ const AddAssignmentModal = ({
                     value={member.id}
                     disabled={alreadyAssignedToday.includes(member.id)}
                   >
-                    {member.name}
+                    {member.firstName} {member.lastName}
                     {alreadyAssignedToday.includes(member.id) ? ' (bereits eingeplant)' : ''}
                   </option>
                 ))}

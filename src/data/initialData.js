@@ -54,7 +54,29 @@ export const INITIAL_PROJECTS = [
       currency: 'EUR'
     },
     notes: '',
-    phases: []
+    phases: [
+      {
+        id: 101,
+        name: 'Vorproduktion',
+        startDate: '2026-01-06',
+        endDate: '2026-01-17',
+        status: 'active'
+      },
+      {
+        id: 102,
+        name: 'Dreh',
+        startDate: '2026-01-20',
+        endDate: '2026-01-24',
+        status: 'planning'
+      },
+      {
+        id: 103,
+        name: 'Postproduktion',
+        startDate: '2026-01-27',
+        endDate: '2026-02-07',
+        status: 'planning'
+      }
+    ]
   },
   {
     id: 2,

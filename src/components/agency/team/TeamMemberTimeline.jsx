@@ -8,7 +8,8 @@ import {
   Baby,
   Clock,
   ChevronRight,
-  AlertCircle
+  ExternalLink,
+  AlertTriangle
 } from 'lucide-react';
 import { getAbsenceTypeLabel } from '../../../constants/team';
 
@@ -17,22 +18,37 @@ import { getAbsenceTypeLabel } from '../../../constants/team';
  *
  * @param {Array} memberAbsences - Abwesenheiten des Mitglieds
  * @param {Array} memberAssignments - Einplanungen des Mitglieds
+ * @param {Array} projects - Alle Projekte für Lookup
+ * @param {Function} onAssignmentClick - Callback bei Klick auf Einplanung (projectId, phaseId)
  * @param {number} limit - Max Anzahl anzuzeigender Einträge
  */
 const TeamMemberTimeline = ({
   memberAbsences = [],
   memberAssignments = [],
+  projects = [],
+  onAssignmentClick,
   limit = 10
 }) => {
+  // Lookup für Projekt- und Phasennamen
+  const getProjectInfo = (assignment) => {
+    const project = projects.find(p => p.id === assignment.projectId);
+    if (!project) return { projectName: null, phaseName: null };
+
+    const phase = project.phases?.find(ph => ph.id === assignment.phaseId);
+    return {
+      projectName: project.name,
+      phaseName: phase?.name || null
+    };
+  };
   // Kombiniere und sortiere alle Events chronologisch
   const timelineEvents = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
 
-    // Abwesenheiten als Events
+    // Abwesenheiten als Events - KRANK wird ausgefiltert (keine "kommenden Termine")
     const absenceEvents = memberAbsences
-      .filter(a => a.endDate >= todayStr) // Nur zukünftige oder laufende
+      .filter(a => a.endDate >= todayStr && a.type !== 'sick') // Nur zukünftige, keine Kranktage
       .map(a => ({
         id: a.id,
         type: 'absence',
@@ -42,8 +58,25 @@ const TeamMemberTimeline = ({
         title: getAbsenceTypeLabel(a.type),
         note: a.note,
         isOngoing: a.startDate <= todayStr && a.endDate >= todayStr,
-        isPast: a.endDate < todayStr
+        isPast: a.endDate < todayStr,
+        isClickable: false // Abwesenheiten sind nicht klickbar
       }));
+
+    // Helper: Check if a date is within a sick absence
+    const getSickConflict = (dates) => {
+      const sickAbsences = memberAbsences.filter(abs => abs.type === 'sick');
+      for (const date of dates) {
+        for (const sick of sickAbsences) {
+          if (date >= sick.startDate && date <= sick.endDate) {
+            return {
+              hasSickConflict: true,
+              conflictDays: dates.filter(d => d >= sick.startDate && d <= sick.endDate).length
+            };
+          }
+        }
+      }
+      return { hasSickConflict: false, conflictDays: 0 };
+    };
 
     // Einplanungen als Events
     const assignmentEvents = memberAssignments
@@ -51,6 +84,7 @@ const TeamMemberTimeline = ({
       .map(a => {
         const sortedDates = [...(a.dates || [])].sort();
         const futureDates = sortedDates.filter(d => d >= todayStr);
+        const sickConflict = getSickConflict(sortedDates);
         return {
           id: a.id,
           type: 'assignment',
@@ -63,7 +97,10 @@ const TeamMemberTimeline = ({
           phaseId: a.phaseId,
           totalDays: a.dates?.length || 0,
           isOngoing: sortedDates.some(d => d === todayStr),
-          isPast: sortedDates.every(d => d < todayStr)
+          isPast: sortedDates.every(d => d < todayStr),
+          isClickable: !!(a.projectId && a.phaseId), // Nur klickbar wenn Projekt und Phase vorhanden
+          hasSickConflict: sickConflict.hasSickConflict,
+          sickConflictDays: sickConflict.conflictDays
         };
       });
 
@@ -214,20 +251,40 @@ const TeamMemberTimeline = ({
               ? event.totalDays
               : getDayCount(event.startDate, event.endDate);
 
+            // Projekt/Phase Info für Assignments
+            const projectInfo = event.type === 'assignment'
+              ? getProjectInfo(event)
+              : { projectName: null, phaseName: null };
+
+            const handleClick = () => {
+              if (event.isClickable && onAssignmentClick) {
+                onAssignmentClick(event.projectId, event.phaseId);
+              }
+            };
+
             return (
               <div key={event.id} className="relative pl-8">
                 {/* Timeline-Dot */}
                 <div className={`absolute left-1.5 top-3 w-3 h-3 rounded-full ${colors.dot} ring-2 ring-white dark:ring-gray-800`} />
 
                 {/* Event-Card */}
-                <div className={`p-3 rounded-lg border ${colors.bg} ${colors.border}`}>
+                <div
+                  onClick={handleClick}
+                  className={`p-3 rounded-lg border ${colors.bg} ${
+                    event.hasSickConflict ? 'border-red-400 dark:border-red-600 border-2' : colors.border
+                  } ${
+                    event.isClickable
+                      ? 'cursor-pointer hover:shadow-md transition-shadow'
+                      : ''
+                  }`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
                       <div className={`mt-0.5 ${colors.icon}`}>
                         <Icon className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className={`font-medium ${colors.text}`}>
                             {event.title}
                           </span>
@@ -236,7 +293,29 @@ const TeamMemberTimeline = ({
                               JETZT
                             </span>
                           )}
+                          {event.hasSickConflict && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" />
+                              KRANK
+                            </span>
+                          )}
                         </div>
+
+                        {/* Projekt & Phase für Assignments - Breadcrumb Style */}
+                        {event.type === 'assignment' && (projectInfo.projectName || projectInfo.phaseName) && (
+                          <div className="flex items-center gap-1 text-sm mt-0.5">
+                            {projectInfo.projectName && (
+                              <span className="text-blue-600 dark:text-blue-400">{projectInfo.projectName}</span>
+                            )}
+                            {projectInfo.projectName && projectInfo.phaseName && (
+                              <ChevronRight className="w-3 h-3 text-blue-400 dark:text-blue-500" />
+                            )}
+                            {projectInfo.phaseName && (
+                              <span className="text-blue-500 dark:text-blue-400">{projectInfo.phaseName}</span>
+                            )}
+                          </div>
+                        )}
+
                         <div className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
                           {formatDateRange(event.startDate, event.endDate)}
                           <span className="text-gray-400 dark:text-gray-500 ml-2">
@@ -250,7 +329,11 @@ const TeamMemberTimeline = ({
                         )}
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-1" />
+                    {event.isClickable ? (
+                      <ExternalLink className="w-4 h-4 text-blue-400 dark:text-blue-500 flex-shrink-0 mt-1" />
+                    ) : (
+                      <div className="w-4 h-4 flex-shrink-0" /> /* Spacer */
+                    )}
                   </div>
                 </div>
               </div>

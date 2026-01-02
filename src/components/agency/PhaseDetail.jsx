@@ -10,6 +10,7 @@ import {
   Plus,
   Trash2,
   UserPlus,
+  UsersRound,
   Mail,
   Phone,
   Clock,
@@ -17,11 +18,13 @@ import {
   Package,
   ZoomIn,
   ZoomOut,
-  RotateCcw
+  RotateCcw,
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import FreelancerSearchModal from '../modals/FreelancerSearchModal';
 import { ProfileAvatar } from '../shared/ProfileField';
-import { formatDate } from '../../utils/dateUtils';
+import { formatDate, createDateKey } from '../../utils/dateUtils';
 import { useUnsavedChangesContext } from '../../contexts/UnsavedChangesContext';
 import {
   BOOKING_STATUS,
@@ -200,12 +203,19 @@ const PhaseDetail = ({
   onOpenAddToListModal,
   // Chat Props
   getOrCreateChat,
-  onOpenChat
+  onOpenChat,
+  // Team Props (interne Mitarbeiter)
+  teamMembers = [],
+  teamAssignments = [],
+  onAddTeamAssignment,
+  onRemoveTeamAssignment,
+  checkTeamConflicts
 }) => {
   const [activeTab, setActiveTab] = useState('team');
   const [tasks, setTasks] = useState(phase.tasks || []);
   const [newTask, setNewTask] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [showTeamAssignModal, setShowTeamAssignModal] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(2); // 0=fit-all, 1=klein, 2=mittel, 3=normal, 4=groß
   const [containerWidth, setContainerWidth] = useState(800);
   const timelineContainerRef = useRef(null);
@@ -288,6 +298,30 @@ const PhaseDetail = ({
     });
     return Array.from(teamMap.values());
   }, [phaseBookings, freelancers]);
+
+  // Team-Assignments für diese Phase (interne Mitarbeiter)
+  const phaseTeamAssignments = useMemo(() => {
+    return teamAssignments.filter(a =>
+      a.projectId === project.id && a.phaseId === phase.id
+    );
+  }, [teamAssignments, project.id, phase.id]);
+
+  // Interne Mitarbeiter mit ihren Einplanungen
+  const internalTeam = useMemo(() => {
+    const memberMap = new Map();
+    phaseTeamAssignments.forEach(assignment => {
+      const member = teamMembers.find(m => m.id === assignment.memberId);
+      if (!member) return;
+      if (!memberMap.has(assignment.memberId)) {
+        memberMap.set(assignment.memberId, {
+          member,
+          assignments: []
+        });
+      }
+      memberMap.get(assignment.memberId).assignments.push(assignment);
+    });
+    return Array.from(memberMap.values());
+  }, [phaseTeamAssignments, teamMembers]);
 
   // Team nach Status gruppiert
   const groupedTeam = useMemo(() => {
@@ -510,13 +544,22 @@ const PhaseDetail = ({
                 : 'Kein Zeitraum festgelegt – buche Freelancer um Zeitraum zu definieren'}
             </p>
           </div>
-          <button
-            onClick={() => setShowSearch(true)}
-            className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium flex items-center gap-2 hover:opacity-90 transition-all hover:shadow-[0_0_15px_var(--color-primary)]"
-          >
-            <UserPlus className="w-4 h-4" />
-            Freelancer buchen
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowTeamAssignModal(true)}
+              className="px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-medium flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-all"
+            >
+              <UsersRound className="w-4 h-4" />
+              Mitarbeiter
+            </button>
+            <button
+              onClick={() => setShowSearch(true)}
+              className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium flex items-center gap-2 hover:opacity-90 transition-all hover:shadow-[0_0_15px_var(--color-primary)]"
+            >
+              <UserPlus className="w-4 h-4" />
+              Freelancer
+            </button>
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -579,10 +622,78 @@ const PhaseDetail = ({
           <div className="p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Team-Übersicht</h2>
 
-            {team.length === 0 ? (
+            {/* Interne Mitarbeiter */}
+            {internalTeam.length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-3 h-3 rounded-full bg-cyan-500"></div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">
+                    Interne Mitarbeiter
+                  </h3>
+                  <span className="px-2 py-0.5 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 rounded-full text-xs font-medium">
+                    {internalTeam.length}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {internalTeam.map(({ member, assignments }) => {
+                    const totalDays = assignments.reduce((sum, a) => sum + a.dates.length, 0);
+                    return (
+                      <div
+                        key={member.id}
+                        className="p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border-l-4 border-l-cyan-500"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center text-lg font-semibold text-cyan-700 dark:text-cyan-300">
+                              {member.firstName?.charAt(0)}{member.lastName?.charAt(0)}
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900 dark:text-white">
+                                {member.firstName} {member.lastName}
+                              </h3>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">{member.position}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-gray-900 dark:text-white">{totalDays} Tage</p>
+                            <span className="text-xs px-2 py-0.5 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 rounded-full">
+                              Intern
+                            </span>
+                          </div>
+                        </div>
+                        {/* Einplanungs-Details */}
+                        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                          {assignments.map(assignment => (
+                            <div key={assignment.id} className="flex justify-between items-center text-sm">
+                              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                                {formatDate(assignment.dates[0])} – {formatDate(assignment.dates[assignment.dates.length - 1])}
+                                <span className="text-gray-400 dark:text-gray-500">({assignment.dates.length} Tage)</span>
+                                {assignment.projectRole && (
+                                  <span className="text-cyan-600 dark:text-cyan-400">• {assignment.projectRole}</span>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => onRemoveTeamAssignment?.(assignment.id)}
+                                className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                title="Einplanung entfernen"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {team.length === 0 && internalTeam.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-500 dark:text-gray-400">Noch keine Freelancer gebucht</p>
+                <p className="text-gray-500 dark:text-gray-400">Noch keine Freelancer oder Mitarbeiter eingeplant</p>
                 <button
                   onClick={() => setShowSearch(true)}
                   className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-all hover:shadow-[0_0_15px_var(--color-primary)]"
@@ -590,7 +701,7 @@ const PhaseDetail = ({
                   Freelancer suchen
                 </button>
               </div>
-            ) : (
+            ) : team.length > 0 ? (
               <div className="space-y-8">
                 {/* Ausstehend */}
                 {groupedTeam.pending.length > 0 && (
@@ -704,7 +815,7 @@ const PhaseDetail = ({
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
 
             {/* Stornierte Buchungen */}
             {cancelledBookings.length > 0 && (
@@ -1263,6 +1374,389 @@ const PhaseDetail = ({
           onOpenChat={onOpenChat}
         />
       )}
+
+      {/* Team Member Assign Modal */}
+      {showTeamAssignModal && (
+        <TeamMemberAssignModal
+          project={project}
+          phase={phase}
+          teamMembers={teamMembers}
+          teamAssignments={teamAssignments}
+          checkTeamConflicts={checkTeamConflicts}
+          onAssign={onAddTeamAssignment}
+          onRemove={onRemoveTeamAssignment}
+          onClose={() => setShowTeamAssignModal(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+/**
+ * TeamMemberAssignModal - Modal zum Einplanen interner Mitarbeiter
+ */
+const TeamMemberAssignModal = ({
+  project,
+  phase,
+  teamMembers,
+  teamAssignments,
+  checkTeamConflicts,
+  onAssign,
+  onRemove,
+  onClose
+}) => {
+  const [selectedMemberId, setSelectedMemberId] = useState(null);
+  const [selectedDates, setSelectedDates] = useState([]);
+  const [projectRole, setProjectRole] = useState('');
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const todayKey = createDateKey(new Date());
+
+  // Aktive Team-Mitglieder
+  const activeMembers = teamMembers.filter(m => m.isActive);
+
+  // Bereits eingeplante Mitglieder in dieser Phase
+  const phaseAssignments = teamAssignments.filter(a =>
+    a.projectId === project.id && a.phaseId === phase.id
+  );
+
+  // Ausgewählter Mitarbeiter
+  const selectedMember = activeMembers.find(m => m.id === selectedMemberId);
+
+  // Konflikte für ausgewählten Mitarbeiter und Daten
+  const conflicts = useMemo(() => {
+    if (!selectedMemberId || selectedDates.length === 0) return [];
+    if (!checkTeamConflicts) return [];
+
+    const result = [];
+    selectedDates.forEach(date => {
+      const conflict = checkTeamConflicts(selectedMemberId, date);
+      if (conflict) {
+        result.push({ date, ...conflict });
+      }
+    });
+    return result;
+  }, [selectedMemberId, selectedDates, checkTeamConflicts]);
+
+  // Kalender-Rendering
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOffset = new Date(year, month, 1).getDay();
+  const adjustedOffset = firstDayOffset === 0 ? 6 : firstDayOffset - 1; // Montag = 0
+
+  const weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+  const handleDayClick = (dateKey) => {
+    if (selectedDates.includes(dateKey)) {
+      setSelectedDates(selectedDates.filter(d => d !== dateKey));
+    } else {
+      setSelectedDates([...selectedDates, dateKey].sort());
+    }
+  };
+
+  const handleAssign = () => {
+    if (!selectedMemberId || selectedDates.length === 0) return;
+
+    onAssign({
+      memberId: selectedMemberId,
+      projectId: project.id,
+      phaseId: phase.id,
+      dates: selectedDates,
+      projectRole: projectRole || undefined
+    });
+
+    // Reset selection
+    setSelectedDates([]);
+    setProjectRole('');
+  };
+
+  const handleRemoveAssignment = (assignmentId) => {
+    onRemove(assignmentId);
+  };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Mitarbeiter einplanen
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {phase.name} • {project.name}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+          >
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="grid grid-cols-2 gap-6">
+            {/* Linke Spalte: Mitarbeiter auswählen */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                Mitarbeiter auswählen
+              </h3>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                {activeMembers.map(member => {
+                  const isSelected = selectedMemberId === member.id;
+                  const memberAssignments = phaseAssignments.filter(a => a.memberId === member.id);
+                  const isAlreadyAssigned = memberAssignments.length > 0;
+
+                  return (
+                    <button
+                      key={member.id}
+                      onClick={() => setSelectedMemberId(member.id)}
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${
+                        isSelected
+                          ? 'bg-primary/10 border-2 border-primary'
+                          : 'bg-gray-50 dark:bg-gray-700/50 border-2 border-transparent hover:border-gray-200 dark:hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-sm font-medium text-gray-600 dark:text-gray-300">
+                        {member.firstName?.charAt(0)}{member.lastName?.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 dark:text-white truncate">
+                          {member.firstName} {member.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {member.position}
+                        </p>
+                      </div>
+                      {isAlreadyAssigned && (
+                        <span className="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded-full">
+                          {memberAssignments.reduce((sum, a) => sum + a.dates.length, 0)} Tage
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+
+                {activeMembers.length === 0 && (
+                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    Keine aktiven Mitarbeiter vorhanden
+                  </p>
+                )}
+              </div>
+
+              {/* Bereits eingeplante Mitarbeiter */}
+              {phaseAssignments.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                    Bereits eingeplant
+                  </h3>
+                  <div className="space-y-2">
+                    {phaseAssignments.map(assignment => {
+                      const member = teamMembers.find(m => m.id === assignment.memberId);
+                      if (!member) return null;
+
+                      return (
+                        <div
+                          key={assignment.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                              {member.firstName?.charAt(0)}{member.lastName?.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                {member.firstName} {member.lastName}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {assignment.dates.length} Tag{assignment.dates.length !== 1 ? 'e' : ''}
+                                {assignment.projectRole && ` • ${assignment.projectRole}`}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveAssignment(assignment.id)}
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Rechte Spalte: Kalender & Datum auswählen */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                Tage auswählen
+              </h3>
+
+              {!selectedMemberId ? (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  Wähle zuerst einen Mitarbeiter aus
+                </div>
+              ) : (
+                <>
+                  {/* Mini-Kalender */}
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                    {/* Monat-Navigation */}
+                    <div className="flex items-center justify-between mb-3">
+                      <button
+                        onClick={() => setCurrentMonth(new Date(year, month - 1, 1))}
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                      >
+                        <ChevronRight className="w-4 h-4 rotate-180 text-gray-500" />
+                      </button>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {monthNames[month]} {year}
+                      </span>
+                      <button
+                        onClick={() => setCurrentMonth(new Date(year, month + 1, 1))}
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                      >
+                        <ChevronRight className="w-4 h-4 text-gray-500" />
+                      </button>
+                    </div>
+
+                    {/* Wochentage */}
+                    <div className="grid grid-cols-7 gap-1 mb-1">
+                      {weekdays.map(day => (
+                        <div key={day} className="text-center text-xs text-gray-500 dark:text-gray-400 py-1">
+                          {day}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Tage */}
+                    <div className="grid grid-cols-7 gap-1">
+                      {[...Array(adjustedOffset)].map((_, i) => (
+                        <div key={`empty-${i}`} className="aspect-square" />
+                      ))}
+
+                      {[...Array(daysInMonth)].map((_, i) => {
+                        const day = i + 1;
+                        const dateKey = createDateKey(year, month, day);
+                        const isSelected = selectedDates.includes(dateKey);
+                        const isPast = dateKey < todayKey;
+                        const hasConflict = conflicts.some(c => c.date === dateKey);
+                        const isWeekend = new Date(year, month, day).getDay() === 0 ||
+                                          new Date(year, month, day).getDay() === 6;
+
+                        return (
+                          <button
+                            key={day}
+                            onClick={() => !isPast && handleDayClick(dateKey)}
+                            disabled={isPast}
+                            className={`
+                              aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-all
+                              ${isPast
+                                ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                                : isSelected
+                                  ? hasConflict
+                                    ? 'bg-orange-500 text-white'
+                                    : 'bg-primary text-primary-foreground'
+                                  : isWeekend
+                                    ? 'text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                              }
+                            `}
+                          >
+                            {day}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Ausgewählte Tage */}
+                  {selectedDates.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                        {selectedDates.length} Tag{selectedDates.length !== 1 ? 'e' : ''} ausgewählt:
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedDates.map(date => (
+                          <span
+                            key={date}
+                            className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full"
+                          >
+                            {formatDate(date)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Konflikte */}
+                  {conflicts.length > 0 && (
+                    <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                      <p className="text-sm font-medium text-orange-700 dark:text-orange-300 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        Konflikte gefunden
+                      </p>
+                      <ul className="mt-2 text-xs text-orange-600 dark:text-orange-400 space-y-1">
+                        {conflicts.slice(0, 3).map(c => (
+                          <li key={c.date}>
+                            {formatDate(c.date)}: {c.reason}
+                          </li>
+                        ))}
+                        {conflicts.length > 3 && (
+                          <li>... und {conflicts.length - 3} weitere</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Rolle */}
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Rolle im Projekt (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={projectRole}
+                      onChange={(e) => setProjectRole(e.target.value)}
+                      placeholder="z.B. Produktionsleitung, Aufnahmeleitung..."
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
+          >
+            Schließen
+          </button>
+          <button
+            onClick={handleAssign}
+            disabled={!selectedMemberId || selectedDates.length === 0}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Einplanen
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

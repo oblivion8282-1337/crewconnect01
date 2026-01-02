@@ -17,7 +17,8 @@ import {
   XCircle,
   AlertCircle,
   Settings,
-  CalendarDays
+  CalendarDays,
+  ChevronRight
 } from 'lucide-react';
 import {
   TEAM_ROLES,
@@ -42,6 +43,8 @@ import TeamMemberTimeline from './TeamMemberTimeline';
  * @param {Function} onBack - Zurück zur Liste
  * @param {Object} teamHandlers - CRUD-Operationen vom useTeam Hook
  * @param {Object} agencyDefaults - Agentur-Standard-Permissions
+ * @param {Array} projects - Alle Projekte für Lookup
+ * @param {Function} onNavigateToPhase - Navigation zu Phase (projectId, phaseId)
  */
 const TeamMemberDetail = ({
   member,
@@ -49,7 +52,9 @@ const TeamMemberDetail = ({
   memberAssignments = [],
   onBack,
   teamHandlers,
-  agencyDefaults
+  agencyDefaults,
+  projects = [],
+  onNavigateToPhase
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('calendar'); // 'calendar' | 'info' | 'absences' | 'permissions' | 'assignments'
@@ -311,6 +316,8 @@ const TeamMemberDetail = ({
           <TeamMemberTimeline
             memberAbsences={memberAbsences}
             memberAssignments={memberAssignments}
+            projects={projects}
+            onAssignmentClick={onNavigateToPhase}
             limit={8}
           />
 
@@ -319,6 +326,10 @@ const TeamMemberDetail = ({
             member={member}
             memberAbsences={memberAbsences}
             memberAssignments={memberAssignments}
+            projects={projects}
+            onAssignmentClick={onNavigateToPhase}
+            onAddAbsence={teamHandlers?.addAbsence}
+            onRemoveAbsence={teamHandlers?.removeAbsence}
           />
         </div>
       )}
@@ -739,34 +750,55 @@ const TeamMemberDetail = ({
               </p>
             ) : (
               <div className="space-y-2">
-                {memberAssignments.map(assignment => (
-                  <div
-                    key={assignment.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Briefcase className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {assignment.projectRole || `Projekt #${assignment.projectId}`}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {assignment.dates?.length > 0 ? (
-                            <>
-                              {assignment.dates.length === 1
-                                ? new Date(assignment.dates[0]).toLocaleDateString('de-DE')
-                                : `${new Date(assignment.dates[0]).toLocaleDateString('de-DE')} - ${new Date(assignment.dates[assignment.dates.length - 1]).toLocaleDateString('de-DE')}`
-                              }
-                              <span className="text-gray-400"> ({assignment.dates.length} Tag{assignment.dates.length > 1 ? 'e' : ''})</span>
-                            </>
-                          ) : (
-                            'Keine Daten'
+                {memberAssignments.map(assignment => {
+                  const project = projects.find(p => p.id === assignment.projectId);
+                  const phase = project?.phases?.find(ph => ph.id === assignment.phaseId);
+                  const isClickable = onNavigateToPhase && assignment.projectId && assignment.phaseId;
+
+                  return (
+                    <div
+                      key={assignment.id}
+                      onClick={() => isClickable && onNavigateToPhase(assignment.projectId, assignment.phaseId)}
+                      className={`flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg ${
+                        isClickable ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600/50 transition-colors' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Briefcase className="w-5 h-5 text-blue-500" />
+                        <div>
+                          <div className="font-medium text-gray-900 dark:text-white">
+                            {assignment.projectRole || 'Einplanung'}
+                          </div>
+                          {project && (
+                            <div className="text-sm text-blue-600 dark:text-blue-400">
+                              {project.name}
+                              {phase && <span className="text-gray-400"> / {phase.name}</span>}
+                            </div>
                           )}
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {assignment.dates?.length > 0 ? (
+                              <>
+                                {assignment.dates.length === 1
+                                  ? new Date(assignment.dates[0]).toLocaleDateString('de-DE')
+                                  : `${new Date(assignment.dates[0]).toLocaleDateString('de-DE')} - ${new Date(assignment.dates[assignment.dates.length - 1]).toLocaleDateString('de-DE')}`
+                                }
+                                <span className="text-gray-400"> ({assignment.dates.length} Tag{assignment.dates.length > 1 ? 'e' : ''})</span>
+                              </>
+                            ) : (
+                              'Keine Daten'
+                            )}
+                          </div>
                         </div>
                       </div>
+                      {isClickable && (
+                        <div className="text-xs text-blue-500 dark:text-blue-400 flex items-center gap-1">
+                          Zur Phase
+                          <ChevronRight className="w-4 h-4" />
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

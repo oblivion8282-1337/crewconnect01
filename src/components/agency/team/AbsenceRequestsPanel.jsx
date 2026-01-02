@@ -45,7 +45,7 @@ const AbsenceRequestsPanel = ({
   const sortedRequests = [...filteredRequests].sort((a, b) => {
     if (a.status === 'pending' && b.status !== 'pending') return -1;
     if (a.status !== 'pending' && b.status === 'pending') return 1;
-    return new Date(b.requestedAt) - new Date(a.requestedAt);
+    return new Date(b.createdAt) - new Date(a.createdAt);
   });
 
   const handleApprove = (requestId) => {
@@ -184,7 +184,7 @@ const AbsenceRequestsPanel = ({
                     {member?.avatar ? (
                       <img
                         src={member.avatar}
-                        alt={member.name}
+                        alt={`${member.firstName} ${member.lastName}`}
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     ) : (
@@ -197,7 +197,7 @@ const AbsenceRequestsPanel = ({
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium text-gray-900 dark:text-white">
-                          {member?.name || 'Unbekannt'}
+                          {member ? `${member.firstName} ${member.lastName}` : 'Unbekannt'}
                         </span>
                         {getStatusBadge(request.status)}
                       </div>
@@ -232,7 +232,7 @@ const AbsenceRequestsPanel = ({
                       )}
 
                       <div className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                        Angefragt am {new Date(request.requestedAt).toLocaleDateString('de-DE')}
+                        Angefragt am {new Date(request.createdAt).toLocaleDateString('de-DE')}
                       </div>
                     </div>
                   </div>

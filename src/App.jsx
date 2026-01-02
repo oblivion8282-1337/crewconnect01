@@ -54,6 +54,16 @@ import { USER_ROLES } from './constants/calendar';
 // Team Components
 import { TeamList } from './components/agency/team';
 
+// Member Components (Mitarbeiter-Ansicht)
+import {
+  MemberDashboard,
+  MemberCalendar,
+  MemberProjects,
+  MemberProjectDetail,
+  MyAbsenceRequests,
+  MemberProfile
+} from './components/member';
+
 /**
  * CrewConnect - Hauptanwendung (Innere Komponente mit Zugriff auf Context)
  */
@@ -63,6 +73,7 @@ const AppContent = () => {
   // === User Identity State ===
   const [freelancerId, setFreelancerId] = useState(1);
   const [agencyId, setAgencyId] = useState(1);
+  const [currentTeamMemberId, setCurrentTeamMemberId] = useState(null);
 
   // === UI State ===
   const [userRole, setUserRole] = useState(USER_ROLES.AGENCY);
@@ -189,6 +200,7 @@ const AppContent = () => {
     createAbsenceRequest: requestAbsence,
     approveAbsenceRequest,
     rejectAbsenceRequest,
+    withdrawAbsenceRequest,
     createAssignment: addTeamAssignment,
     removeAssignment: removeTeamAssignment,
     checkConflicts: checkTeamConflicts,
@@ -200,6 +212,11 @@ const AppContent = () => {
 
   // Anzahl der offenen Abwesenheitsanfragen für Badge
   const pendingAbsenceRequestsCount = absenceRequests.filter(r => r.status === 'pending').length;
+
+  // === Member View Detection ===
+  // Prüfe ob der eingeloggte User ein Team-Mitglied (nicht Projektleitung) ist
+  const currentTeamMember = teamMembers.find(m => m.id === currentTeamMemberId);
+  const isMemberView = currentTeamMember?.role === 'member';
 
   // === Booking Logic ===
   const {
@@ -306,6 +323,17 @@ const AppContent = () => {
     setSelectedClientId(null);
     setShowClientForm(false);
     setEditingClient(null);
+    // Reset team member when switching to freelancer role
+    if (newRole === USER_ROLES.FREELANCER) {
+      setCurrentTeamMemberId(null);
+    }
+  };
+
+  // Navigate to a specific project phase (e.g., from team calendar)
+  const handleNavigateToPhase = (projectId, phaseId) => {
+    setSelectedProjectId(projectId);
+    setSelectedPhaseId(phaseId);
+    setCurrentView('projects');
   };
 
   const handleOpenCancelModal = (booking) => {
@@ -532,6 +560,7 @@ const AppContent = () => {
         onClose={() => setSidebarOpen(false)}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        isMemberView={isMemberView}
       />
 
       {/* Main Content Area */}
@@ -556,8 +585,11 @@ const AppContent = () => {
           agencyId={agencyId}
           freelancers={freelancers}
           agencies={agencies}
+          teamMembers={teamMembers}
+          currentTeamMemberId={currentTeamMemberId}
           onFreelancerChange={setFreelancerId}
           onAgencyChange={setAgencyId}
+          onTeamMemberChange={setCurrentTeamMemberId}
           onOpenSidebar={() => setSidebarOpen(true)}
         />
 
@@ -676,8 +708,80 @@ const AppContent = () => {
             </div>
           )}
 
-          {/* Agency Views */}
-          {userRole === USER_ROLES.AGENCY && currentView === 'dashboard' && !selectedProject && (
+          {/* ============================================== */}
+          {/* MEMBER VIEWS (Mitarbeiter-Ansicht) */}
+          {/* ============================================== */}
+          {userRole === USER_ROLES.AGENCY && isMemberView && currentView === 'dashboard' && (
+            <MemberDashboard
+              member={currentTeamMember}
+              assignments={teamAssignments.filter(a => a.memberId === currentTeamMemberId)}
+              absences={teamAbsences.filter(a => a.memberId === currentTeamMemberId)}
+              absenceRequests={absenceRequests.filter(r => r.memberId === currentTeamMemberId)}
+              projects={projects}
+              teamMembers={teamMembers}
+              onNavigateToProject={(projectId) => {
+                setSelectedProjectId(projectId);
+                setCurrentView('my-projects');
+              }}
+              onNavigateToCalendar={() => setCurrentView('calendar')}
+              onNavigateToAbsences={() => setCurrentView('absences')}
+            />
+          )}
+
+          {userRole === USER_ROLES.AGENCY && isMemberView && currentView === 'calendar' && (
+            <MemberCalendar
+              member={currentTeamMember}
+              assignments={teamAssignments.filter(a => a.memberId === currentTeamMemberId)}
+              absences={teamAbsences.filter(a => a.memberId === currentTeamMemberId)}
+              absenceRequests={absenceRequests.filter(r => r.memberId === currentTeamMemberId)}
+              projects={projects}
+              currentDate={currentDate}
+              onNavigateToPhase={handleNavigateToPhase}
+            />
+          )}
+
+          {userRole === USER_ROLES.AGENCY && isMemberView && currentView === 'my-projects' && !selectedProjectId && (
+            <MemberProjects
+              member={currentTeamMember}
+              assignments={teamAssignments.filter(a => a.memberId === currentTeamMemberId)}
+              projects={projects}
+              onSelectProject={setSelectedProjectId}
+            />
+          )}
+
+          {userRole === USER_ROLES.AGENCY && isMemberView && currentView === 'my-projects' && selectedProjectId && (
+            <MemberProjectDetail
+              member={currentTeamMember}
+              project={projects.find(p => p.id === selectedProjectId)}
+              assignments={teamAssignments}
+              teamMembers={teamMembers}
+              freelancers={freelancers}
+              bookings={bookings}
+              permissions={currentTeamMember?.permissionOverrides || getDefaultMemberPermissions()}
+              onBack={() => setSelectedProjectId(null)}
+            />
+          )}
+
+          {userRole === USER_ROLES.AGENCY && isMemberView && currentView === 'absences' && (
+            <MyAbsenceRequests
+              member={currentTeamMember}
+              requests={absenceRequests.filter(r => r.memberId === currentTeamMemberId)}
+              absences={teamAbsences.filter(a => a.memberId === currentTeamMemberId)}
+              assignments={teamAssignments.filter(a => a.memberId === currentTeamMemberId)}
+              projects={projects}
+              onCreateRequest={requestAbsence}
+              onWithdraw={withdrawAbsenceRequest}
+            />
+          )}
+
+          {userRole === USER_ROLES.AGENCY && isMemberView && currentView === 'profile' && (
+            <MemberProfile member={currentTeamMember} />
+          )}
+
+          {/* ============================================== */}
+          {/* AGENCY VIEWS (Projektleitung-Ansicht) */}
+          {/* ============================================== */}
+          {userRole === USER_ROLES.AGENCY && !isMemberView && currentView === 'dashboard' && !selectedProject && (
             <AgencyHomeDashboard
               projects={projects}
               bookings={bookings}
@@ -691,7 +795,7 @@ const AppContent = () => {
             />
           )}
 
-          {userRole === USER_ROLES.AGENCY && currentView === 'projects' && !selectedProject && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && currentView === 'projects' && !selectedProject && (
             <AgencyProjects
               projects={projects}
               bookings={bookings}
@@ -707,7 +811,7 @@ const AppContent = () => {
             />
           )}
 
-          {userRole === USER_ROLES.AGENCY && (currentView === 'dashboard' || currentView === 'projects') && selectedProject && !selectedPhase && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && (currentView === 'dashboard' || currentView === 'projects') && selectedProject && !selectedPhase && (
             <ProjectDetail
               project={selectedProject}
               bookings={bookings}
@@ -754,7 +858,7 @@ const AppContent = () => {
             />
           )}
 
-          {userRole === USER_ROLES.AGENCY && (currentView === 'dashboard' || currentView === 'projects') && selectedProject && selectedPhase && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && (currentView === 'dashboard' || currentView === 'projects') && selectedProject && selectedPhase && (
             <PhaseDetail
               project={selectedProject}
               phase={selectedPhase}
@@ -785,10 +889,16 @@ const AppContent = () => {
                 setCurrentView('messages');
                 setSelectedChatId(chatId);
               }}
+              // Team Props (interne Mitarbeiter)
+              teamMembers={teamMembers}
+              teamAssignments={teamAssignments}
+              onAddTeamAssignment={addTeamAssignment}
+              onRemoveTeamAssignment={removeTeamAssignment}
+              checkTeamConflicts={checkTeamConflicts}
             />
           )}
 
-          {userRole === USER_ROLES.AGENCY && currentView === 'bookings' && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && currentView === 'bookings' && (
             <AgencyBookings
               bookings={bookings}
               agencyId={agencyId}
@@ -811,7 +921,7 @@ const AppContent = () => {
           )}
 
           {/* Client (CRM) Views */}
-          {userRole === USER_ROLES.AGENCY && currentView === 'clients' && !selectedClientId && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && currentView === 'clients' && !selectedClientId && (
             <ClientList
               clients={getClientsWithStats(projects)}
               onSelectClient={setSelectedClientId}
@@ -820,7 +930,7 @@ const AppContent = () => {
             />
           )}
 
-          {userRole === USER_ROLES.AGENCY && currentView === 'clients' && selectedClientId && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && currentView === 'clients' && selectedClientId && (
             <ClientDetail
               client={getClientById(selectedClientId)}
               projects={getProjectsByClient(selectedClientId)}
@@ -843,7 +953,7 @@ const AppContent = () => {
           )}
 
           {/* Agency Team View (interne Mitarbeiter) */}
-          {userRole === USER_ROLES.AGENCY && currentView === 'team' && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && currentView === 'team' && (
             <TeamList
               teamMembers={teamMembers}
               teamAbsences={teamAbsences}
@@ -864,10 +974,12 @@ const AppContent = () => {
               getUtilization={getUtilization}
               getAbsencesForMember={getAbsencesForMember}
               getAssignmentsForMember={getAssignmentsForMember}
+              projects={projects}
+              onNavigateToPhase={handleNavigateToPhase}
             />
           )}
 
-          {userRole === USER_ROLES.AGENCY && currentView === 'profile' && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && currentView === 'profile' && (
             <AgencyProfile
               profile={agencyProfile}
               onUpdate={updateAgencyProfile}
@@ -878,7 +990,7 @@ const AppContent = () => {
             />
           )}
 
-          {userRole === USER_ROLES.AGENCY && currentView === 'crew' && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && currentView === 'crew' && (
             <CrewListsPage
               freelancers={freelancers}
               favorites={getAgencyFavorites()}
@@ -902,7 +1014,7 @@ const AppContent = () => {
             />
           )}
 
-          {userRole === USER_ROLES.AGENCY && currentView === 'freelancer-search' && !selectedFreelancerId && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && currentView === 'freelancer-search' && !selectedFreelancerId && (
             <AgencyFreelancerSearch
               freelancers={freelancers}
               bookings={bookings}
@@ -915,7 +1027,7 @@ const AppContent = () => {
             />
           )}
 
-          {userRole === USER_ROLES.AGENCY && currentView === 'freelancer-search' && selectedFreelancerId && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && currentView === 'freelancer-search' && selectedFreelancerId && (
             <FreelancerProfileView
               freelancer={freelancers.find(f => f.id === selectedFreelancerId)}
               bookings={bookings}
@@ -939,7 +1051,7 @@ const AppContent = () => {
           )}
 
           {/* Agency Messages View */}
-          {userRole === USER_ROLES.AGENCY && currentView === 'messages' && !selectedChatId && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && currentView === 'messages' && !selectedChatId && (
             <div className="max-w-2xl mx-auto">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
                 Nachrichten
@@ -953,7 +1065,7 @@ const AppContent = () => {
             </div>
           )}
 
-          {userRole === USER_ROLES.AGENCY && currentView === 'messages' && selectedChatId && (
+          {userRole === USER_ROLES.AGENCY && !isMemberView && currentView === 'messages' && selectedChatId && (
             <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
               <ChatView
                 chat={getChatById(selectedChatId)}

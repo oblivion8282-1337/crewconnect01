@@ -69,7 +69,7 @@ const TeamMemberCard = ({
           {member.avatar ? (
             <img
               src={member.avatar}
-              alt={member.name}
+              alt={memberName}
               className="w-12 h-12 rounded-full object-cover"
             />
           ) : (

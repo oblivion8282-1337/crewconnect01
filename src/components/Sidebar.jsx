@@ -13,7 +13,9 @@ import {
   ChevronRight,
   X,
   MessageCircle,
-  Building2
+  Building2,
+  Palmtree,
+  Film
 } from 'lucide-react';
 import { USER_ROLES } from '../constants/calendar';
 
@@ -30,7 +32,7 @@ const FREELANCER_NAV_ITEMS = [
 ];
 
 /**
- * Navigations-Items für Agenturen
+ * Navigations-Items für Agenturen (Projektleitung)
  */
 const AGENCY_NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -41,6 +43,17 @@ const AGENCY_NAV_ITEMS = [
   { id: 'messages', icon: MessageCircle, label: 'Nachrichten', showMessageBadge: true },
   { id: 'freelancer-search', icon: Search, label: 'Freelancer' },
   { id: 'crew', icon: Users, label: 'Meine Freelancer' },
+  { id: 'profile', icon: User, label: 'Profil' }
+];
+
+/**
+ * Navigations-Items für Team-Mitarbeiter (eingeschränkte Ansicht)
+ */
+const MEMBER_NAV_ITEMS = [
+  { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { id: 'calendar', icon: Calendar, label: 'Kalender' },
+  { id: 'my-projects', icon: Film, label: 'Meine Projekte' },
+  { id: 'absences', icon: Palmtree, label: 'Urlaub' },
   { id: 'profile', icon: User, label: 'Profil' }
 ];
 
@@ -58,11 +71,15 @@ const Sidebar = ({
   isOpen,
   onClose,
   isCollapsed,
-  onToggleCollapse
+  onToggleCollapse,
+  isMemberView = false
 }) => {
+  // Wähle die richtigen Nav-Items basierend auf Rolle und Member-View
   const navItems = userRole === USER_ROLES.FREELANCER
     ? FREELANCER_NAV_ITEMS
-    : AGENCY_NAV_ITEMS;
+    : isMemberView
+      ? MEMBER_NAV_ITEMS
+      : AGENCY_NAV_ITEMS;
 
   return (
     <>

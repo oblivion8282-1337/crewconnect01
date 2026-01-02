@@ -72,8 +72,11 @@ const Header = ({
   agencyId,
   freelancers = [],
   agencies = [],
+  teamMembers = [],
+  currentTeamMemberId,
   onFreelancerChange,
   onAgencyChange,
+  onTeamMemberChange,
   onOpenSidebar
 }) => {
   const [showUserSwitcher, setShowUserSwitcher] = useState(false);
@@ -84,14 +87,20 @@ const Header = ({
 
   const currentFreelancer = freelancers.find(f => f.id === freelancerId);
   const currentAgency = agencies.find(a => a.id === agencyId);
+  const currentTeamMember = teamMembers.find(m => m.id === currentTeamMemberId);
+
+  // Filtere Team-Mitglieder der aktuellen Agentur
+  const agencyTeamMembers = teamMembers.filter(m => m.agencyId === agencyId && m.isActive);
 
   const currentUserName = userRole === USER_ROLES.FREELANCER
     ? currentFreelancer ? `${currentFreelancer.firstName} ${currentFreelancer.lastName}` : 'Freelancer'
-    : currentAgency?.name || 'Agentur';
+    : currentTeamMember
+      ? `${currentTeamMember.firstName} ${currentTeamMember.lastName}`
+      : currentAgency?.name || 'Agentur';
 
   const currentUserAvatar = userRole === USER_ROLES.FREELANCER
     ? currentFreelancer?.avatar || '👤'
-    : currentAgency?.logo || '🎬';
+    : currentTeamMember?.avatar || currentAgency?.logo || '🎬';
 
   return (
     <header className="
@@ -198,18 +207,19 @@ const Header = ({
                         key={a.id}
                         onClick={() => {
                           onAgencyChange(a.id);
+                          onTeamMemberChange?.(null); // Reset team member
                           onRoleChange(USER_ROLES.AGENCY);
                           setShowUserSwitcher(false);
                         }}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm transition-all duration-200 ${
-                          agencyId === a.id && userRole === USER_ROLES.AGENCY
+                          agencyId === a.id && userRole === USER_ROLES.AGENCY && !currentTeamMemberId
                             ? 'bg-primary text-primary-foreground'
                             : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                         }`}
                       >
                         <span className="text-lg">{a.logo}</span>
                         <span className="font-medium">{a.name}</span>
-                        {agencyId === a.id && userRole === USER_ROLES.AGENCY && (
+                        {agencyId === a.id && userRole === USER_ROLES.AGENCY && !currentTeamMemberId && (
                           <span className="ml-auto text-[10px] bg-gray-900 text-primary px-2 py-0.5 rounded-full font-semibold">
                             aktiv
                           </span>
@@ -218,6 +228,47 @@ const Header = ({
                     ))}
                   </div>
                 </div>
+
+                {/* Team Members Section (nur für aktuelle Agentur) */}
+                {agencyTeamMembers.length > 0 && (
+                  <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">
+                      Mitarbeiter
+                    </div>
+                    <div className="space-y-1">
+                      {agencyTeamMembers.map(m => (
+                        <button
+                          key={m.id}
+                          onClick={() => {
+                            onTeamMemberChange?.(m.id);
+                            onRoleChange(USER_ROLES.AGENCY);
+                            setShowUserSwitcher(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm transition-all duration-200 ${
+                            currentTeamMemberId === m.id && userRole === USER_ROLES.AGENCY
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          <span className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-sm font-medium text-gray-600 dark:text-gray-300">
+                            {m.firstName.charAt(0)}{m.lastName.charAt(0)}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium block truncate">{m.firstName} {m.lastName}</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500 block truncate">
+                              {m.position} • {m.role === 'projectlead' ? 'Projektleitung' : 'Mitarbeiter'}
+                            </span>
+                          </div>
+                          {currentTeamMemberId === m.id && userRole === USER_ROLES.AGENCY && (
+                            <span className="text-[10px] bg-gray-900 text-primary px-2 py-0.5 rounded-full font-semibold shrink-0">
+                              aktiv
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

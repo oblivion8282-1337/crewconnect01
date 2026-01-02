@@ -39,10 +39,10 @@ const useTeam = (agencyId = 1) => {
       role: 'projectlead',
       permissionOverrides: null,
       isActive: true,
-      lastLoginAt: '2025-01-15T10:30:00Z',
+      lastLoginAt: '2026-01-02T10:30:00Z',
       notes: '',
-      createdAt: '2024-06-01T00:00:00Z',
-      updatedAt: '2025-01-15T10:30:00Z'
+      createdAt: '2025-06-01T00:00:00Z',
+      updatedAt: '2026-01-02T10:30:00Z'
     },
     {
       id: 'member-2',
@@ -62,10 +62,10 @@ const useTeam = (agencyId = 1) => {
       role: 'member',
       permissionOverrides: null,
       isActive: true,
-      lastLoginAt: '2025-01-14T16:00:00Z',
+      lastLoginAt: '2026-01-01T16:00:00Z',
       notes: 'Einarbeitung läuft gut',
-      createdAt: '2024-09-15T00:00:00Z',
-      updatedAt: '2025-01-14T16:00:00Z'
+      createdAt: '2025-09-15T00:00:00Z',
+      updatedAt: '2026-01-01T16:00:00Z'
     },
     {
       id: 'member-3',
@@ -87,8 +87,8 @@ const useTeam = (agencyId = 1) => {
       isActive: true,
       lastLoginAt: null,
       notes: 'Studiert noch bis Sommer',
-      createdAt: '2024-11-01T00:00:00Z',
-      updatedAt: '2024-11-01T00:00:00Z'
+      createdAt: '2025-11-01T00:00:00Z',
+      updatedAt: '2025-11-01T00:00:00Z'
     }
   ]);
 
@@ -98,13 +98,13 @@ const useTeam = (agencyId = 1) => {
       id: 'absence-1',
       memberId: 'member-2',
       type: 'vacation',
-      startDate: '2025-02-10',
-      endDate: '2025-02-14',
+      startDate: '2026-02-10',
+      endDate: '2026-02-14',
       isPartialDay: false,
       startTime: null,
       endTime: null,
       note: 'Skiurlaub',
-      createdAt: '2025-01-10T00:00:00Z'
+      createdAt: '2026-01-02T00:00:00Z'
     }
   ]);
 
@@ -114,8 +114,8 @@ const useTeam = (agencyId = 1) => {
       id: 'request-1',
       memberId: 'member-3',
       type: 'vacation',
-      startDate: '2025-03-24',
-      endDate: '2025-03-28',
+      startDate: '2026-03-24',
+      endDate: '2026-03-28',
       isPartialDay: false,
       startTime: null,
       endTime: null,
@@ -124,35 +124,47 @@ const useTeam = (agencyId = 1) => {
       reviewedBy: null,
       reviewedAt: null,
       rejectionReason: null,
-      createdAt: '2025-01-12T00:00:00Z'
+      createdAt: '2026-01-02T00:00:00Z'
     }
   ]);
 
   const [teamAssignments, setTeamAssignments] = useState([
-    // Demo-Daten
+    // Demo-Daten - verwende numerische IDs die zu INITIAL_PROJECTS passen
     {
       id: 'assignment-1',
       memberId: 'member-1',
-      projectId: 'proj-1',
-      phaseId: 'phase-1',
-      dates: ['2025-01-20', '2025-01-21', '2025-01-22'],
+      projectId: 1,
+      phaseId: 102,
+      dates: ['2026-01-20', '2026-01-21', '2026-01-22'],
       timeSlots: null,
       projectRole: 'Produktionsleitung',
       note: '',
-      createdAt: '2025-01-15T00:00:00Z',
-      updatedAt: '2025-01-15T00:00:00Z'
+      createdAt: '2026-01-02T00:00:00Z',
+      updatedAt: '2026-01-02T00:00:00Z'
     },
     {
       id: 'assignment-2',
       memberId: 'member-2',
-      projectId: 'proj-1',
-      phaseId: 'phase-1',
-      dates: ['2025-01-20', '2025-01-21'],
+      projectId: 1,
+      phaseId: 102,
+      dates: ['2026-01-20', '2026-01-21', '2026-01-22', '2026-01-23', '2026-01-24'],
       timeSlots: null,
       projectRole: 'Set-Aufnahmeleitung',
       note: '',
-      createdAt: '2025-01-15T00:00:00Z',
-      updatedAt: '2025-01-15T00:00:00Z'
+      createdAt: '2026-01-02T00:00:00Z',
+      updatedAt: '2026-01-02T00:00:00Z'
+    },
+    {
+      id: 'assignment-3',
+      memberId: 'member-2',
+      projectId: 1,
+      phaseId: 101,
+      dates: ['2026-01-08', '2026-01-09', '2026-01-10'],
+      timeSlots: null,
+      projectRole: 'Produktionsassistenz',
+      note: 'Location Scouting',
+      createdAt: '2026-01-02T00:00:00Z',
+      updatedAt: '2026-01-02T00:00:00Z'
     }
   ]);
 

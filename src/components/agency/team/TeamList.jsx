@@ -28,6 +28,8 @@ import { TEAM_ROLES, EMPLOYMENT_TYPES } from '../../../constants/team';
  * @param {Function} updateDefaultMemberPermissions - Funktion zum Aktualisieren der Defaults
  * @param {Function} getAbsencesForMember - Funktion zum Abrufen der Abwesenheiten eines Mitglieds
  * @param {Function} getAssignmentsForMember - Funktion zum Abrufen der Einplanungen eines Mitglieds
+ * @param {Array} projects - Alle Projekte für Lookup
+ * @param {Function} onNavigateToPhase - Navigation zu Phase (projectId, phaseId)
  */
 const TeamList = ({
   teamMembers = [],
@@ -39,7 +41,9 @@ const TeamList = ({
   updateDefaultMemberPermissions,
   getUtilization,
   getAbsencesForMember,
-  getAssignmentsForMember
+  getAssignmentsForMember,
+  projects = [],
+  onNavigateToPhase
 }) => {
   // View State
   const [view, setView] = useState('list'); // 'list' | 'detail' | 'settings' | 'requests'
@@ -73,7 +77,7 @@ const TeamList = ({
       // Suche
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const matchesName = member.name?.toLowerCase().includes(query);
+        const matchesName = `${member.firstName} ${member.lastName}`.toLowerCase().includes(query);
         const matchesEmail = member.email?.toLowerCase().includes(query);
         const matchesPosition = member.position?.toLowerCase().includes(query);
         if (!matchesName && !matchesEmail && !matchesPosition) return false;
@@ -123,6 +127,8 @@ const TeamList = ({
         onBack={handleBack}
         teamHandlers={teamHandlers}
         agencyDefaults={agencyDefaults}
+        projects={projects}
+        onNavigateToPhase={onNavigateToPhase}
       />
     );
   }
